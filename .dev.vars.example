@@ -1,0 +1,2 @@
+INGEST_TOKEN=replace-with-a-long-random-token
+DATABASE_URL=mysql://user:password@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/test?sslaccept=strict
