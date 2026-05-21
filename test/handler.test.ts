@@ -4,10 +4,15 @@ import type { RawPayloadInput, RawPayloadRepository } from "../src/types";
 
 class MemoryRepository implements RawPayloadRepository {
   public inserted: RawPayloadInput[] = [];
+  public insertedEvents: Array<{ rawPayloadId: number; events: unknown[] }> = [];
 
   async insert(input: RawPayloadInput) {
     this.inserted.push(input);
     return { id: 123 };
+  }
+
+  async insertEvents(rawPayloadId: number, events: unknown[]) {
+    this.insertedEvents.push({ rawPayloadId, events });
   }
 }
 
@@ -95,6 +100,58 @@ describe("handleRecordsRequest", () => {
         payload: { records: [{ type: "milk", amount: 50 }] },
       },
     ]);
+    expect(repository.insertedEvents).toEqual([]);
+  });
+
+  it("saves parsed Piyolog events after saving the raw payload", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/records?token=secret-token", {
+      method: "POST",
+      body: JSON.stringify({
+        baby: { nickname: "凛ちゃん" },
+        days: [
+          {
+            date: { year: 2026, month: 5, day: 21 },
+            events: [
+              {
+                hour: 14,
+                minute: 5,
+                type: "Formula",
+                value: { unit: "ml", value: 60 },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const response = await handleRecordsRequest(request, env, () => repository);
+
+    expect(response.status).toBe(200);
+    expect(repository.insertedEvents).toEqual([
+      {
+        rawPayloadId: 123,
+        events: [
+          {
+            babyNickname: "凛ちゃん",
+            eventDate: "2026-05-21",
+            occurredAt: "2026-05-21 14:05:00",
+            eventType: "Formula",
+            amountValue: 60,
+            amountUnit: "ml",
+            leftSeconds: null,
+            rightSeconds: null,
+            lastSide: null,
+            rawEvent: {
+              hour: 14,
+              minute: 5,
+              type: "Formula",
+              value: { unit: "ml", value: 60 },
+            },
+          },
+        ],
+      },
+    ]);
   });
 
   it("returns 500 when persistence fails", async () => {
@@ -102,6 +159,9 @@ describe("handleRecordsRequest", () => {
     const repository: RawPayloadRepository = {
       async insert() {
         throw new Error("database unavailable");
+      },
+      async insertEvents() {
+        throw new Error("unreachable");
       },
     };
     const request = new Request("https://example.com/api/records?token=secret-token", {

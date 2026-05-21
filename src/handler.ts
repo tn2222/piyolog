@@ -1,4 +1,5 @@
 import type { Env, RawPayloadRepositoryFactory } from "./types";
+import { parsePiyologEvents } from "./piyolog";
 
 type ErrorCode =
   | "method_not_allowed"
@@ -58,6 +59,10 @@ export async function handleRecordsRequest(
       userAgent: request.headers.get("user-agent"),
       payload,
     });
+    const events = parsePiyologEvents(payload);
+    if (result.id !== null && events.length > 0) {
+      await repository.insertEvents(result.id, events);
+    }
 
     return jsonResponse({ ok: true, id: result.id }, 200);
   } catch (error) {

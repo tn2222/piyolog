@@ -47,6 +47,31 @@ CREATE TABLE IF NOT EXISTS raw_piyolog_payloads (
 
 このSQLは [migrations/001_create_raw_piyolog_payloads.sql](migrations/001_create_raw_piyolog_payloads.sql) と同じ内容です。`received_at` には、rawデータ確認やGrafanaでの時間範囲クエリに備えてインデックスを付けています。
 
+実際のぴよログJSONをGrafanaで扱いやすくするため、イベント展開用テーブルも作成します。
+
+```sql
+CREATE TABLE IF NOT EXISTS piyolog_events (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  raw_payload_id BIGINT NOT NULL,
+  baby_nickname VARCHAR(255),
+  event_date DATE NOT NULL,
+  occurred_at DATETIME NOT NULL,
+  event_type VARCHAR(64) NOT NULL,
+  amount_value DECIMAL(10, 2),
+  amount_unit VARCHAR(32),
+  left_seconds DECIMAL(10, 3),
+  right_seconds DECIMAL(10, 3),
+  last_side VARCHAR(16),
+  raw_event JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_piyolog_events_occurred_at (occurred_at),
+  INDEX idx_piyolog_events_type_occurred_at (event_type, occurred_at),
+  INDEX idx_piyolog_events_raw_payload_id (raw_payload_id)
+);
+```
+
+このSQLは [migrations/002_create_piyolog_events.sql](migrations/002_create_piyolog_events.sql) と同じ内容です。
+
 ## ローカル開発
 
 依存関係をインストールします。
@@ -109,7 +134,29 @@ https://<deployed-worker-url>/api/records?token=<INGEST_TOKEN>
 
 Grafana Cloud から、`raw_piyolog_payloads` が入っているTiDB Cloud Serverlessのデータベースを参照します。
 
-現時点のWorkerはraw JSONを保存するだけです。ミルク、うんち、おしっこ、睡眠などの正規化テーブルやGrafanaダッシュボードは、実際のぴよログJSONを取得してから設計します。
+Workerはraw JSONを保存したあと、`days[].events[]` を `piyolog_events` に展開して保存します。Grafanaではこのテーブルに対してSQLを書きます。
+
+次回ミルク予定時刻の例:
+
+```sql
+SELECT
+  DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR) AS next_formula_at
+FROM piyolog_events
+WHERE event_type = 'Formula';
+```
+
+日別ミルク量の例:
+
+```sql
+SELECT
+  event_date,
+  COUNT(*) AS formula_count,
+  SUM(amount_value) AS total_ml
+FROM piyolog_events
+WHERE event_type = 'Formula'
+GROUP BY event_date
+ORDER BY event_date;
+```
 
 ## セキュリティ
 
@@ -121,4 +168,3 @@ Grafana Cloud から、`raw_piyolog_payloads` が入っているTiDB Cloud Serve
 - 十分に長いランダムなトークンを使う
 - URL全体やトークンをログに残さない
 - トークンが漏れた可能性がある場合はすぐにローテーションする
-

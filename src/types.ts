@@ -1,3 +1,5 @@
+import type { PiyologEventInput } from "./piyolog";
+
 export type Env = {
   INGEST_TOKEN: string;
   DATABASE_URL: string;
@@ -15,6 +17,7 @@ export type RawPayloadInsertResult = {
 
 export type RawPayloadRepository = {
   insert(input: RawPayloadInput): Promise<RawPayloadInsertResult>;
+  insertEvents(rawPayloadId: number, events: PiyologEventInput[]): Promise<void>;
 };
 
 export type RawPayloadRepositoryFactory = () => RawPayloadRepository;

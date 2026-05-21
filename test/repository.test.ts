@@ -54,6 +54,116 @@ VALUES (?, ?, CAST(? AS JSON))
     ]);
   });
 
+  it("inserts parsed events for a raw payload", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    await repository.insertEvents(42, [
+      {
+        babyNickname: "凛ちゃん",
+        eventDate: "2026-05-21",
+        occurredAt: "2026-05-21 04:30:00",
+        eventType: "Formula",
+        amountValue: 50,
+        amountUnit: "ml",
+        leftSeconds: null,
+        rightSeconds: null,
+        lastSide: null,
+        rawEvent: {
+          hour: 4,
+          minute: 30,
+          type: "Formula",
+          value: { unit: "ml", value: 50 },
+        },
+      },
+      {
+        babyNickname: "凛ちゃん",
+        eventDate: "2026-05-21",
+        occurredAt: "2026-05-21 13:10:00",
+        eventType: "BreastFeeding",
+        amountValue: null,
+        amountUnit: null,
+        leftSeconds: 397.8564898967743,
+        rightSeconds: 128.1482539176941,
+        lastSide: "right",
+        rawEvent: {
+          hour: 13,
+          minute: 10,
+          type: "BreastFeeding",
+          leftTime: 397.8564898967743,
+          rightTime: 128.1482539176941,
+          last: "right",
+        },
+      },
+    ]);
+
+    expect(connection.calls).toEqual([
+      {
+        sql: `
+INSERT INTO piyolog_events (
+  raw_payload_id,
+  baby_nickname,
+  event_date,
+  occurred_at,
+  event_type,
+  amount_value,
+  amount_unit,
+  left_seconds,
+  right_seconds,
+  last_side,
+  raw_event
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON))
+        `.trim(),
+        params: [
+          42,
+          "凛ちゃん",
+          "2026-05-21",
+          "2026-05-21 04:30:00",
+          "Formula",
+          50,
+          "ml",
+          null,
+          null,
+          null,
+          JSON.stringify({
+            hour: 4,
+            minute: 30,
+            type: "Formula",
+            value: { unit: "ml", value: 50 },
+          }),
+          42,
+          "凛ちゃん",
+          "2026-05-21",
+          "2026-05-21 13:10:00",
+          "BreastFeeding",
+          null,
+          null,
+          397.8564898967743,
+          128.1482539176941,
+          "right",
+          JSON.stringify({
+            hour: 13,
+            minute: 10,
+            type: "BreastFeeding",
+            leftTime: 397.8564898967743,
+            rightTime: 128.1482539176941,
+            last: "right",
+          }),
+        ],
+      },
+    ]);
+  });
+
+  it("skips event insertion when there are no parsed events", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    await repository.insertEvents(42, []);
+
+    expect(connection.calls).toEqual([]);
+  });
+
   it("returns null id when the driver does not expose lastInsertId", async () => {
     const connection = {
       async execute() {

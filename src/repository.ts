@@ -1,5 +1,6 @@
 import { connect } from "@tidbcloud/serverless";
 import type { FullResult } from "@tidbcloud/serverless";
+import type { PiyologEventInput } from "./piyolog";
 import type { RawPayloadInput, RawPayloadRepository } from "./types";
 
 type TiDBConnection = {
@@ -21,6 +22,47 @@ VALUES (?, ?, CAST(? AS JSON))
     return {
       id: parseInsertId(result.lastInsertId),
     };
+  }
+
+  async insertEvents(rawPayloadId: number, events: PiyologEventInput[]): Promise<void> {
+    if (events.length === 0) {
+      return;
+    }
+
+    const valuesSql = events.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON))");
+    const params = events.flatMap((event) => [
+      rawPayloadId,
+      event.babyNickname,
+      event.eventDate,
+      event.occurredAt,
+      event.eventType,
+      event.amountValue,
+      event.amountUnit,
+      event.leftSeconds,
+      event.rightSeconds,
+      event.lastSide,
+      JSON.stringify(event.rawEvent),
+    ]);
+
+    await this.connection.execute(
+      `
+INSERT INTO piyolog_events (
+  raw_payload_id,
+  baby_nickname,
+  event_date,
+  occurred_at,
+  event_type,
+  amount_value,
+  amount_unit,
+  left_seconds,
+  right_seconds,
+  last_side,
+  raw_event
+)
+VALUES ${valuesSql.join(", ")}
+      `.trim(),
+      params,
+    );
   }
 }
 
