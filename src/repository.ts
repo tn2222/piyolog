@@ -64,6 +64,20 @@ VALUES ${valuesSql.join(", ")}
       params,
     );
   }
+
+  async deleteEventsByDates(eventDates: string[]): Promise<void> {
+    const uniqueEventDates = [...new Set(eventDates)];
+    if (uniqueEventDates.length === 0) {
+      return;
+    }
+
+    const placeholders = uniqueEventDates.map(() => "?").join(", ");
+
+    await this.connection.execute(
+      `DELETE FROM piyolog_events WHERE event_date IN (${placeholders})`,
+      uniqueEventDates,
+    );
+  }
 }
 
 export function createTiDBRawPayloadRepository(databaseUrl: string): RawPayloadRepository {

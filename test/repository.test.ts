@@ -155,6 +155,43 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
     ]);
   });
 
+  it("deletes normalized events for the received event dates", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    await repository.deleteEventsByDates(["2026-05-20", "2026-05-21"]);
+
+    expect(connection.calls).toEqual([
+      {
+        sql: "DELETE FROM piyolog_events WHERE event_date IN (?, ?)",
+        params: ["2026-05-20", "2026-05-21"],
+      },
+    ]);
+  });
+
+  it("skips deleting events when there are no received event dates", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    await repository.deleteEventsByDates([]);
+
+    expect(connection.calls).toEqual([]);
+  });
+
+  it("deduplicates event dates before deleting normalized events", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    await repository.deleteEventsByDates(["2026-05-21", "2026-05-20", "2026-05-21"]);
+
+    expect(connection.calls).toEqual([
+      {
+        sql: "DELETE FROM piyolog_events WHERE event_date IN (?, ?)",
+        params: ["2026-05-21", "2026-05-20"],
+      },
+    ]);
+  });
+
   it("skips event insertion when there are no parsed events", async () => {
     const connection = new FakeConnection();
     const repository = new TiDBRawPayloadRepository(connection);

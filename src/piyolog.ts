@@ -58,6 +58,27 @@ export function parsePiyologEvents(payload: unknown): PiyologEventInput[] {
   return events;
 }
 
+export function parsePiyologEventDates(payload: unknown): string[] {
+  if (!isRecord(payload) || !Array.isArray(payload.days)) {
+    return [];
+  }
+
+  const eventDates: string[] = [];
+
+  for (const day of payload.days) {
+    if (!isRecord(day)) {
+      continue;
+    }
+
+    const date = parseDateParts(day.date);
+    if (date !== null) {
+      eventDates.push(formatDate(date));
+    }
+  }
+
+  return [...new Set(eventDates)];
+}
+
 function toPiyologEventInput(
   babyNickname: string | null,
   date: DateParts,

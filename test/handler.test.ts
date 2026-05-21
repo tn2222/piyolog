@@ -4,6 +4,7 @@ import type { RawPayloadInput, RawPayloadRepository } from "../src/types";
 
 class MemoryRepository implements RawPayloadRepository {
   public inserted: RawPayloadInput[] = [];
+  public replacedEventDates: string[][] = [];
   public insertedEvents: Array<{ rawPayloadId: number; events: unknown[] }> = [];
 
   async insert(input: RawPayloadInput) {
@@ -13,6 +14,10 @@ class MemoryRepository implements RawPayloadRepository {
 
   async insertEvents(rawPayloadId: number, events: unknown[]) {
     this.insertedEvents.push({ rawPayloadId, events });
+  }
+
+  async deleteEventsByDates(eventDates: string[]) {
+    this.replacedEventDates.push(eventDates);
   }
 }
 
@@ -128,6 +133,7 @@ describe("handleRecordsRequest", () => {
     const response = await handleRecordsRequest(request, env, () => repository);
 
     expect(response.status).toBe(200);
+    expect(repository.replacedEventDates).toEqual([["2026-05-21"]]);
     expect(repository.insertedEvents).toEqual([
       {
         rawPayloadId: 123,
@@ -154,11 +160,68 @@ describe("handleRecordsRequest", () => {
     ]);
   });
 
+  it("replaces parsed Piyolog events for all dates included in the payload", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/records?token=secret-token", {
+      method: "POST",
+      body: JSON.stringify({
+        days: [
+          {
+            date: { year: 2026, month: 5, day: 20 },
+            events: [{ hour: 10, minute: 0, type: "Poop" }],
+          },
+          {
+            date: { year: 2026, month: 5, day: 21 },
+            events: [
+              { hour: 4, minute: 30, type: "Formula", value: { unit: "ml", value: 50 } },
+              { hour: 10, minute: 0, type: "Poop" },
+            ],
+          },
+          {
+            date: { year: 2026, month: 5, day: 21 },
+            events: [{ hour: 11, minute: 0, type: "Pee" }],
+          },
+        ],
+      }),
+    });
+
+    const response = await handleRecordsRequest(request, env, () => repository);
+
+    expect(response.status).toBe(200);
+    expect(repository.replacedEventDates).toEqual([["2026-05-20", "2026-05-21"]]);
+    expect(repository.insertedEvents).toHaveLength(1);
+    expect(repository.insertedEvents[0]?.events).toHaveLength(4);
+  });
+
+  it("deletes existing normalized events for received days even when a day has no events", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/records?token=secret-token", {
+      method: "POST",
+      body: JSON.stringify({
+        days: [
+          {
+            date: { year: 2026, month: 5, day: 20 },
+            events: [],
+          },
+        ],
+      }),
+    });
+
+    const response = await handleRecordsRequest(request, env, () => repository);
+
+    expect(response.status).toBe(200);
+    expect(repository.replacedEventDates).toEqual([["2026-05-20"]]);
+    expect(repository.insertedEvents).toEqual([]);
+  });
+
   it("returns 500 when persistence fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const repository: RawPayloadRepository = {
       async insert() {
         throw new Error("database unavailable");
+      },
+      async deleteEventsByDates() {
+        throw new Error("unreachable");
       },
       async insertEvents() {
         throw new Error("unreachable");

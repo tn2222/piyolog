@@ -1,5 +1,5 @@
 import type { Env, RawPayloadRepositoryFactory } from "./types";
-import { parsePiyologEvents } from "./piyolog";
+import { parsePiyologEventDates, parsePiyologEvents } from "./piyolog";
 
 type ErrorCode =
   | "method_not_allowed"
@@ -54,12 +54,18 @@ export async function handleRecordsRequest(
 
   try {
     const repository = createRepository();
+    const eventDates = parsePiyologEventDates(payload);
+    const events = parsePiyologEvents(payload);
     const result = await repository.insert({
       sourceIp: request.headers.get("cf-connecting-ip"),
       userAgent: request.headers.get("user-agent"),
       payload,
     });
-    const events = parsePiyologEvents(payload);
+
+    if (result.id !== null && eventDates.length > 0) {
+      await repository.deleteEventsByDates(eventDates);
+    }
+
     if (result.id !== null && events.length > 0) {
       await repository.insertEvents(result.id, events);
     }

@@ -17,6 +17,7 @@ export type RawPayloadInsertResult = {
 
 export type RawPayloadRepository = {
   insert(input: RawPayloadInput): Promise<RawPayloadInsertResult>;
+  deleteEventsByDates(eventDates: string[]): Promise<void>;
   insertEvents(rawPayloadId: number, events: PiyologEventInput[]): Promise<void>;
 };
 
