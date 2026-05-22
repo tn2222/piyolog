@@ -1,6 +1,8 @@
 # ぴよログ Grafana 取り込みAPI
 
-ぴよログのカスタムアクションから送られるJSONを Cloudflare Workers で受け取り、TiDB Cloud Serverless にそのまま保存します。保存したrawデータは、後続フェーズでGrafana Cloud向けの正規化テーブルやダッシュボードを設計するために使います。
+ぴよログのテキストエクスポートを Google Apps Script 経由で Cloudflare Workers に送信し、TiDB Cloud Serverless に保存します。Worker は raw text を保存したうえで、時刻付きの記録行を `piyolog_events` に展開します。
+
+既存のカスタムアクションJSON取り込み `POST /api/records` は残していますが、通常運用では Google Drive のテキストエクスポート経路を使います。
 
 ## 構成
 
@@ -72,6 +74,26 @@ CREATE TABLE IF NOT EXISTS piyolog_events (
 
 このSQLは [migrations/002_create_piyolog_events.sql](migrations/002_create_piyolog_events.sql) と同じ内容です。
 
+Google Drive にアップロードされたテキストエクスポートの raw text を保存するため、次のテーブルも作成します。
+
+```sql
+CREATE TABLE IF NOT EXISTS raw_piyolog_text_exports (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  source VARCHAR(64) NOT NULL,
+  file_id VARCHAR(255),
+  file_name TEXT,
+  file_updated_at DATETIME,
+  source_ip VARCHAR(64),
+  user_agent TEXT,
+  text_body MEDIUMTEXT NOT NULL,
+  INDEX idx_raw_piyolog_text_exports_received_at (received_at),
+  INDEX idx_raw_piyolog_text_exports_file_id (file_id)
+);
+```
+
+このSQLは [migrations/003_create_raw_piyolog_text_exports.sql](migrations/003_create_raw_piyolog_text_exports.sql) と同じ内容です。
+
 ## ローカル開発
 
 依存関係をインストールします。
@@ -130,6 +152,40 @@ https://<deployed-worker-url>/api/records?token=<INGEST_TOKEN>
 
 ぴよログはこのURLに対してPOSTリクエストを送ります。
 
+## Google Apps Script
+
+通常運用では、ぴよログのテキストエクスポートを Google Drive にアップロードし、Apps Script が5分ごとに未処理ファイルを Worker に送信します。
+
+```text
+ぴよログ テキストエクスポート
+  -> Google Drive フォルダ
+  -> Google Apps Script
+  -> POST /api/text-records?token=<INGEST_TOKEN>
+  -> TiDB Cloud Serverless
+```
+
+Apps Script のコードと設定手順は [apps-script/README.md](apps-script/README.md) を参照してください。
+
+Worker のテキスト取り込みエンドポイントは次です。
+
+```text
+https://<deployed-worker-url>/api/text-records?token=<INGEST_TOKEN>
+```
+
+リクエストbody:
+
+```json
+{
+  "source": "google_drive_text_export",
+  "fileId": "Google Drive file id",
+  "fileName": "piyolog-2026-05-22.txt",
+  "updatedAt": "2026-05-22T00:10:00.000Z",
+  "text": "ぴよログのテキストエクスポート本文"
+}
+```
+
+テキスト内の `HH:MM` で始まる行は、基本的にすべて `piyolog_events` に保存します。`event_type` はテキスト上の和名ラベルに統一します。
+
 ## Grafana Cloud
 
 Grafana Cloud から、`raw_piyolog_payloads` が入っているTiDB Cloud Serverlessのデータベースを参照します。
@@ -142,7 +198,7 @@ Workerはraw JSONを保存したあと、`days[].events[]` を `piyolog_events` 
 SELECT
   DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR) AS next_formula_at
 FROM piyolog_events
-WHERE event_type = 'Formula';
+WHERE event_type = 'ミルク';
 ```
 
 日別ミルク量の例:
@@ -153,7 +209,7 @@ SELECT
   COUNT(*) AS formula_count,
   SUM(amount_value) AS total_ml
 FROM piyolog_events
-WHERE event_type = 'Formula'
+WHERE event_type = 'ミルク'
 GROUP BY event_date
 ORDER BY event_date;
 ```

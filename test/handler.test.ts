@@ -1,15 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleRecordsRequest } from "../src/handler";
-import type { RawPayloadInput, RawPayloadRepository } from "../src/types";
+import type { RawPayloadInput, RawPayloadRepository, TextExportInput } from "../src/types";
 
 class MemoryRepository implements RawPayloadRepository {
   public inserted: RawPayloadInput[] = [];
+  public insertedTextExports: TextExportInput[] = [];
   public replacedEventDates: string[][] = [];
   public insertedEvents: Array<{ rawPayloadId: number; events: unknown[] }> = [];
 
   async insert(input: RawPayloadInput) {
     this.inserted.push(input);
     return { id: 123 };
+  }
+
+  async insertTextExport(input: TextExportInput) {
+    this.insertedTextExports.push(input);
+    return { id: 456 };
   }
 
   async insertEvents(rawPayloadId: number, events: unknown[]) {
@@ -160,6 +166,109 @@ describe("handleRecordsRequest", () => {
     ]);
   });
 
+  it("saves text exports and replaces normalized events for the included dates", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/text-records?token=secret-token", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "cf-connecting-ip": "203.0.113.10",
+        "user-agent": "Google-Apps-Script",
+      },
+      body: JSON.stringify({
+        source: "google_drive_text_export",
+        fileId: "drive-file-id",
+        fileName: "piyolog-2026-05-22.txt",
+        updatedAt: "2026-05-22T00:10:00.000Z",
+        text: [
+          "2026/5/22(金)",
+          "凛ちゃん (0か月16日)",
+          "",
+          "01:00   ミルク 40ml",
+          "02:00   うんち (黄色)",
+        ].join("\n"),
+      }),
+    });
+
+    const response = await handleRecordsRequest(request, env, () => repository);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, id: 456, events: 2 });
+    expect(repository.insertedTextExports).toEqual([
+      {
+        source: "google_drive_text_export",
+        fileId: "drive-file-id",
+        fileName: "piyolog-2026-05-22.txt",
+        updatedAt: "2026-05-22T00:10:00.000Z",
+        sourceIp: "203.0.113.10",
+        userAgent: "Google-Apps-Script",
+        text: [
+          "2026/5/22(金)",
+          "凛ちゃん (0か月16日)",
+          "",
+          "01:00   ミルク 40ml",
+          "02:00   うんち (黄色)",
+        ].join("\n"),
+      },
+    ]);
+    expect(repository.replacedEventDates).toEqual([["2026-05-22"]]);
+    expect(repository.insertedEvents).toEqual([
+      {
+        rawPayloadId: 456,
+        events: [
+          {
+            babyNickname: "凛ちゃん",
+            eventDate: "2026-05-22",
+            occurredAt: "2026-05-22 01:00:00",
+            eventType: "ミルク",
+            amountValue: 40,
+            amountUnit: "ml",
+            leftSeconds: null,
+            rightSeconds: null,
+            lastSide: null,
+            rawEvent: {
+              source: "text_export",
+              label: "ミルク",
+              note: null,
+              rawLine: "01:00   ミルク 40ml",
+            },
+          },
+          {
+            babyNickname: "凛ちゃん",
+            eventDate: "2026-05-22",
+            occurredAt: "2026-05-22 02:00:00",
+            eventType: "うんち",
+            amountValue: null,
+            amountUnit: null,
+            leftSeconds: null,
+            rightSeconds: null,
+            lastSide: null,
+            rawEvent: {
+              source: "text_export",
+              label: "うんち",
+              note: "黄色",
+              rawLine: "02:00   うんち (黄色)",
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("rejects text export requests without text", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/text-records?token=secret-token", {
+      method: "POST",
+      body: JSON.stringify({ source: "google_drive_text_export" }),
+    });
+
+    const response = await handleRecordsRequest(request, env, () => repository);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "invalid_json" });
+    expect(repository.insertedTextExports).toEqual([]);
+  });
+
   it("replaces parsed Piyolog events for all dates included in the payload", async () => {
     const repository = new MemoryRepository();
     const request = new Request("https://example.com/api/records?token=secret-token", {
@@ -219,6 +328,9 @@ describe("handleRecordsRequest", () => {
     const repository: RawPayloadRepository = {
       async insert() {
         throw new Error("database unavailable");
+      },
+      async insertTextExport() {
+        throw new Error("unreachable");
       },
       async deleteEventsByDates() {
         throw new Error("unreachable");

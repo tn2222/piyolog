@@ -72,4 +72,23 @@ describe("worker entrypoint", () => {
       fullResult: true,
     });
   });
+
+  it("creates a repository for valid text record requests", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/api/text-records?token=secret-token", {
+        method: "POST",
+        body: JSON.stringify({
+          text: "2026/5/22(金)\n凛ちゃん (0か月16日)\n01:00   ミルク 40ml",
+        }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, id: 123, events: 1 });
+    expect(connect).toHaveBeenCalledWith({
+      url: "mysql://example",
+      fullResult: true,
+    });
+  });
 });

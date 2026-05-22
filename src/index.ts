@@ -6,7 +6,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname !== "/api/records") {
+    if (!["/api/records", "/api/text-records"].includes(url.pathname)) {
       return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
         status: 404,
         headers: {

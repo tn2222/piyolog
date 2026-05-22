@@ -1,7 +1,7 @@
 import { connect } from "@tidbcloud/serverless";
 import type { FullResult } from "@tidbcloud/serverless";
 import type { PiyologEventInput } from "./piyolog";
-import type { RawPayloadInput, RawPayloadRepository } from "./types";
+import type { RawPayloadInput, RawPayloadRepository, TextExportInput } from "./types";
 
 type TiDBConnection = {
   execute(sql: string, params?: unknown[]): Promise<Pick<FullResult, "lastInsertId">>;
@@ -17,6 +17,36 @@ INSERT INTO raw_piyolog_payloads (source_ip, user_agent, payload_json)
 VALUES (?, ?, CAST(? AS JSON))
       `.trim(),
       [input.sourceIp, input.userAgent, JSON.stringify(input.payload)],
+    );
+
+    return {
+      id: parseInsertId(result.lastInsertId),
+    };
+  }
+
+  async insertTextExport(input: TextExportInput) {
+    const result = await this.connection.execute(
+      `
+INSERT INTO raw_piyolog_text_exports (
+  source,
+  file_id,
+  file_name,
+  file_updated_at,
+  source_ip,
+  user_agent,
+  text_body
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+      `.trim(),
+      [
+        input.source,
+        input.fileId,
+        input.fileName,
+        formatDateTime(input.updatedAt),
+        input.sourceIp,
+        input.userAgent,
+        input.text,
+      ],
     );
 
     return {
@@ -95,4 +125,17 @@ function parseInsertId(lastInsertId: string | null): number | null {
   }
 
   return id;
+}
+
+function formatDateTime(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }

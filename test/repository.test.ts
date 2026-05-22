@@ -54,6 +54,48 @@ VALUES (?, ?, CAST(? AS JSON))
     ]);
   });
 
+  it("inserts raw text export and metadata", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBRawPayloadRepository(connection);
+
+    const result = await repository.insertTextExport({
+      source: "google_drive_text_export",
+      fileId: "drive-file-id",
+      fileName: "piyolog-2026-05-22.txt",
+      updatedAt: "2026-05-22T00:10:00.000Z",
+      sourceIp: "203.0.113.10",
+      userAgent: "Google-Apps-Script",
+      text: "2026/5/22(金)\n01:00   ミルク 40ml",
+    });
+
+    expect(result).toEqual({ id: 42 });
+    expect(connection.calls).toEqual([
+      {
+        sql: `
+INSERT INTO raw_piyolog_text_exports (
+  source,
+  file_id,
+  file_name,
+  file_updated_at,
+  source_ip,
+  user_agent,
+  text_body
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+        `.trim(),
+        params: [
+          "google_drive_text_export",
+          "drive-file-id",
+          "piyolog-2026-05-22.txt",
+          "2026-05-22 00:10:00",
+          "203.0.113.10",
+          "Google-Apps-Script",
+          "2026/5/22(金)\n01:00   ミルク 40ml",
+        ],
+      },
+    ]);
+  });
+
   it("inserts parsed events for a raw payload", async () => {
     const connection = new FakeConnection();
     const repository = new TiDBRawPayloadRepository(connection);
