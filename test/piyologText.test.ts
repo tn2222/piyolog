@@ -5,7 +5,7 @@ const exportText = `
 【ぴよログ】2026年5月
 ----------
 2026/5/20(水)
-凛ちゃん (0か月14日)
+赤ちゃん (0か月14日)
 
 01:00   ミルク 35ml
 06:45   うんち (多め/黄色)  大量！！
@@ -18,7 +18,7 @@ const exportText = `
 
 ----------
 2026/5/21(木)
-凛ちゃん (0か月15日)
+赤ちゃん (0か月15日)
 
 01:25   おしっこ
 08:00   吐く  溢乳
@@ -31,7 +31,7 @@ describe("parsePiyologTextEvents", () => {
 
     expect(events).toEqual([
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 01:00:00",
         eventType: "ミルク",
@@ -48,7 +48,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 06:45:00",
         eventType: "うんち",
@@ -65,7 +65,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 08:50:00",
         eventType: "母乳",
@@ -82,7 +82,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 12:25:00",
         eventType: "寝る",
@@ -99,7 +99,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 12:45:00",
         eventType: "起きる",
@@ -116,7 +116,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-20",
         occurredAt: "2026-05-20 23:45:00",
         eventType: "体温",
@@ -133,7 +133,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 01:25:00",
         eventType: "おしっこ",
@@ -150,7 +150,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 08:00:00",
         eventType: "吐く",
@@ -167,7 +167,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 10:30:00",
         eventType: "鼻水吸引",
@@ -189,7 +189,7 @@ describe("parsePiyologTextEvents", () => {
   it("keeps continuation lines as part of the previous timestamped event note", () => {
     const events = parsePiyologTextEvents(`
 2026/5/20(水)
-凛ちゃん (0か月14日)
+赤ちゃん (0か月14日)
 
 22:15   吐く  溢乳 レベル
 鼻と口から
@@ -197,7 +197,7 @@ describe("parsePiyologTextEvents", () => {
 `);
 
     expect(events[0]).toEqual({
-      babyNickname: "凛ちゃん",
+      babyNickname: "赤ちゃん",
       eventDate: "2026-05-20",
       occurredAt: "2026-05-20 22:15:00",
       eventType: "吐く",
@@ -218,7 +218,7 @@ describe("parsePiyologTextEvents", () => {
   it("accepts text exports whose first date line is prefixed with the Piyolog title", () => {
     const events = parsePiyologTextEvents(`
 【ぴよログ】2026/5/22(金)
-凛ちゃん (0か月16日)
+赤ちゃん (0か月16日)
 
 00:00   母乳 左9分 ▶ 右13分
 01:30   ミルク 40ml
@@ -226,7 +226,7 @@ describe("parsePiyologTextEvents", () => {
 
     expect(events).toEqual([
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-22",
         occurredAt: "2026-05-22 00:00:00",
         eventType: "母乳",
@@ -243,7 +243,7 @@ describe("parsePiyologTextEvents", () => {
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-22",
         occurredAt: "2026-05-22 01:30:00",
         eventType: "ミルク",

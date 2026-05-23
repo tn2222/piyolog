@@ -61,7 +61,7 @@ describe("worker entrypoint", () => {
       new Request("https://example.com/api/text-records?token=secret-token", {
         method: "POST",
         body: JSON.stringify({
-          text: "2026/5/22(金)\n凛ちゃん (0か月16日)\n01:00   ミルク 40ml",
+          text: "2026/5/22(金)\n赤ちゃん (0か月16日)\n01:00   ミルク 40ml",
         }),
       }),
       env,

@@ -98,7 +98,7 @@ describe("handleTextRecordsRequest", () => {
         updatedAt: "2026-05-22T00:10:00.000Z",
         text: [
           "2026/5/22(金)",
-          "凛ちゃん (0か月16日)",
+          "赤ちゃん (0か月16日)",
           "",
           "01:00   ミルク 40ml",
           "02:00   うんち (黄色)",
@@ -120,7 +120,7 @@ describe("handleTextRecordsRequest", () => {
         userAgent: "Google-Apps-Script",
         text: [
           "2026/5/22(金)",
-          "凛ちゃん (0か月16日)",
+          "赤ちゃん (0か月16日)",
           "",
           "01:00   ミルク 40ml",
           "02:00   うんち (黄色)",
@@ -133,7 +133,7 @@ describe("handleTextRecordsRequest", () => {
         rawTextExportId: 456,
         events: [
           {
-            babyNickname: "凛ちゃん",
+            babyNickname: "赤ちゃん",
             eventDate: "2026-05-22",
             occurredAt: "2026-05-22 01:00:00",
             eventType: "ミルク",
@@ -150,7 +150,7 @@ describe("handleTextRecordsRequest", () => {
             },
           },
           {
-            babyNickname: "凛ちゃん",
+            babyNickname: "赤ちゃん",
             eventDate: "2026-05-22",
             occurredAt: "2026-05-22 02:00:00",
             eventType: "うんち",
@@ -190,7 +190,7 @@ describe("handleTextRecordsRequest", () => {
     const request = new Request("https://example.com/api/text-records?token=secret-token", {
       method: "POST",
       body: JSON.stringify({
-        text: ["2026/5/22(金)", "凛ちゃん (0か月16日)", "ミルク合計 0回 0ml"].join("\n"),
+        text: ["2026/5/22(金)", "赤ちゃん (0か月16日)", "ミルク合計 0回 0ml"].join("\n"),
       }),
     });
 

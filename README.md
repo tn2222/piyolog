@@ -113,7 +113,7 @@ npm run dev
 curl -i \
   -X POST \
   -H "content-type: application/json" \
-  -d '{"text":"2026/5/22(金)\n凛ちゃん (0か月16日)\n01:00   ミルク 40ml"}' \
+  -d '{"text":"2026/5/22(金)\n赤ちゃん (0か月16日)\n01:00   ミルク 40ml"}' \
   "http://localhost:8787/api/text-records?token=replace-with-your-ingest-token"
 ```
 

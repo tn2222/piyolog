@@ -76,7 +76,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 
     await repository.insertEvents(42, [
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 04:30:00",
         eventType: "ミルク",
@@ -93,7 +93,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
         },
       },
       {
-        babyNickname: "凛ちゃん",
+        babyNickname: "赤ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 13:10:00",
         eventType: "母乳",
@@ -131,7 +131,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
         `.trim(),
         params: [
           42,
-          "凛ちゃん",
+          "赤ちゃん",
           "2026-05-21",
           "2026-05-21 04:30:00",
           "ミルク",
@@ -147,7 +147,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
             rawLine: "04:30   ミルク 50ml",
           }),
           42,
-          "凛ちゃん",
+          "赤ちゃん",
           "2026-05-21",
           "2026-05-21 13:10:00",
           "母乳",
