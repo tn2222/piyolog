@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "notify:formula": "node scripts/formula-notifier.mjs",
+    "notify:formula:install": "node scripts/install-formula-notifier-launchd.mjs install",
+    "notify:formula:uninstall": "node scripts/install-formula-notifier-launchd.mjs uninstall",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
