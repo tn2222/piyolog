@@ -2,8 +2,6 @@
 
 ぴよログのテキストエクスポートを Google Apps Script 経由で Cloudflare Workers に送信し、TiDB Cloud Serverless に保存します。Worker は raw text を保存したうえで、時刻付きの記録行を `piyolog_events` に展開します。
 
-既存のカスタムアクションJSON取り込み `POST /api/records` は残していますが、通常運用では Google Drive のテキストエクスポート経路を使います。
-
 ## 構成
 
 - Cloudflare Workers
@@ -36,20 +34,7 @@ npx wrangler secret put DATABASE_URL
 
 Worker にデータを送る前に、TiDB Cloud Serverless で次のSQLを実行します。
 
-```sql
-CREATE TABLE IF NOT EXISTS raw_piyolog_payloads (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  source_ip VARCHAR(64),
-  user_agent TEXT,
-  payload_json JSON NOT NULL,
-  INDEX idx_raw_piyolog_payloads_received_at (received_at)
-);
-```
-
-このSQLは [migrations/001_create_raw_piyolog_payloads.sql](migrations/001_create_raw_piyolog_payloads.sql) と同じ内容です。`received_at` には、rawデータ確認やGrafanaでの時間範囲クエリに備えてインデックスを付けています。
-
-実際のぴよログJSONをGrafanaで扱いやすくするため、イベント展開用テーブルも作成します。
+Grafanaで扱いやすい形にするため、テキストから展開したイベント用テーブルを作成します。
 
 ```sql
 CREATE TABLE IF NOT EXISTS piyolog_events (
@@ -72,9 +57,11 @@ CREATE TABLE IF NOT EXISTS piyolog_events (
 );
 ```
 
-このSQLは [migrations/002_create_piyolog_events.sql](migrations/002_create_piyolog_events.sql) と同じ内容です。
+このSQLは [migrations/001_create_piyolog_events.sql](migrations/001_create_piyolog_events.sql) と同じ内容です。
 
-Google Drive にアップロードされたテキストエクスポートの raw text を保存するため、次のテーブルも作成します。
+`raw_payload_id` は、現在は `raw_piyolog_text_exports.id` を参照する取り込み元IDとして使っています。既存データベースとの互換性を優先して列名は維持しています。
+
+Google Drive にアップロードされたテキストエクスポートの raw text を保存するため、次のテーブルを作成します。
 
 ```sql
 CREATE TABLE IF NOT EXISTS raw_piyolog_text_exports (
@@ -92,7 +79,7 @@ CREATE TABLE IF NOT EXISTS raw_piyolog_text_exports (
 );
 ```
 
-このSQLは [migrations/003_create_raw_piyolog_text_exports.sql](migrations/003_create_raw_piyolog_text_exports.sql) と同じ内容です。
+このSQLは [migrations/002_create_raw_piyolog_text_exports.sql](migrations/002_create_raw_piyolog_text_exports.sql) と同じ内容です。
 
 ## ローカル開発
 
@@ -126,14 +113,14 @@ npm run dev
 curl -i \
   -X POST \
   -H "content-type: application/json" \
-  -d '{"event":"manual-test"}' \
-  "http://localhost:8787/api/records?token=replace-with-your-ingest-token"
+  -d '{"text":"2026/5/22(金)\n凛ちゃん (0か月16日)\n01:00   ミルク 40ml"}' \
+  "http://localhost:8787/api/text-records?token=replace-with-your-ingest-token"
 ```
 
 成功時のレスポンス例です。
 
 ```json
-{"ok":true,"id":1}
+{"ok":true,"id":1,"events":1}
 ```
 
 ## デプロイ
@@ -144,13 +131,11 @@ Workerをデプロイします。
 npm run deploy
 ```
 
-デプロイ後、ぴよログのカスタムアクションURLに、WorkerのURLと共有トークンを設定します。
+デプロイ後、Apps Script の `WORKER_TEXT_ENDPOINT` に Worker のテキスト取り込みエンドポイントを設定します。
 
 ```text
-https://<deployed-worker-url>/api/records?token=<INGEST_TOKEN>
+https://<deployed-worker-url>/api/text-records
 ```
-
-ぴよログはこのURLに対してPOSTリクエストを送ります。
 
 ## Google Apps Script
 
@@ -278,9 +263,9 @@ npm run notify:formula:install
 
 ## Grafana Cloud
 
-Grafana Cloud から、`raw_piyolog_payloads` が入っているTiDB Cloud Serverlessのデータベースを参照します。
+Grafana Cloud から、`piyolog_events` が入っているTiDB Cloud Serverlessのデータベースを参照します。
 
-Workerはraw JSONを保存したあと、`days[].events[]` を `piyolog_events` に展開して保存します。Grafanaではこのテーブルに対してSQLを書きます。
+Workerはraw textを保存したあと、時刻付きの記録行を `piyolog_events` に展開して保存します。Grafanaではこのテーブルに対してSQLを書きます。
 
 次回ミルク予定時刻の例:
 
@@ -306,7 +291,7 @@ ORDER BY event_date;
 
 ## セキュリティ
 
-ぴよログのカスタムアクションが任意のHTTPヘッダーを付けられない可能性があるため、このAPIではURLクエリの共有トークン方式を採用しています。これはクライアント互換性を優先したトレードオフです。
+Apps Script からの取り込みリクエストは、URLクエリの共有トークンで認証します。
 
 運用時は次を守ってください。
 

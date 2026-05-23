@@ -1,28 +1,13 @@
 import { connect } from "@tidbcloud/serverless";
 import type { FullResult } from "@tidbcloud/serverless";
-import type { PiyologEventInput } from "./piyolog";
-import type { RawPayloadInput, RawPayloadRepository, TextExportInput } from "./types";
+import type { PiyologEventInput, PiyologRepository, TextExportInput } from "./types";
 
 type TiDBConnection = {
   execute(sql: string, params?: unknown[]): Promise<Pick<FullResult, "lastInsertId">>;
 };
 
-export class TiDBRawPayloadRepository implements RawPayloadRepository {
+export class TiDBPiyologRepository implements PiyologRepository {
   constructor(private readonly connection: TiDBConnection) {}
-
-  async insert(input: RawPayloadInput) {
-    const result = await this.connection.execute(
-      `
-INSERT INTO raw_piyolog_payloads (source_ip, user_agent, payload_json)
-VALUES (?, ?, CAST(? AS JSON))
-      `.trim(),
-      [input.sourceIp, input.userAgent, JSON.stringify(input.payload)],
-    );
-
-    return {
-      id: parseInsertId(result.lastInsertId),
-    };
-  }
 
   async insertTextExport(input: TextExportInput) {
     const result = await this.connection.execute(
@@ -54,14 +39,14 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
     };
   }
 
-  async insertEvents(rawPayloadId: number, events: PiyologEventInput[]): Promise<void> {
+  async insertEvents(rawTextExportId: number, events: PiyologEventInput[]): Promise<void> {
     if (events.length === 0) {
       return;
     }
 
     const valuesSql = events.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON))");
     const params = events.flatMap((event) => [
-      rawPayloadId,
+      rawTextExportId,
       event.babyNickname,
       event.eventDate,
       event.occurredAt,
@@ -110,8 +95,8 @@ VALUES ${valuesSql.join(", ")}
   }
 }
 
-export function createTiDBRawPayloadRepository(databaseUrl: string): RawPayloadRepository {
-  return new TiDBRawPayloadRepository(connect({ url: databaseUrl, fullResult: true }));
+export function createTiDBPiyologRepository(databaseUrl: string): PiyologRepository {
+  return new TiDBPiyologRepository(connect({ url: databaseUrl, fullResult: true }));
 }
 
 function parseInsertId(lastInsertId: string | null): number | null {

@@ -1,5 +1,4 @@
-import type { Env, RawPayloadRepositoryFactory } from "./types";
-import { parsePiyologEventDates, parsePiyologEvents } from "./piyolog";
+import type { Env, PiyologRepositoryFactory } from "./types";
 import { parsePiyologTextEventDates, parsePiyologTextEvents } from "./piyologText";
 
 type ErrorCode =
@@ -32,10 +31,10 @@ function summarizeError(error: unknown): ErrorSummary {
   return typeof code === "string" ? { name, code } : { name };
 }
 
-export async function handleRecordsRequest(
+export async function handleTextRecordsRequest(
   request: Request,
   env: Env,
-  createRepository: RawPayloadRepositoryFactory,
+  createRepository: PiyologRepositoryFactory,
 ): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse({ ok: false, error: "method_not_allowed" satisfies ErrorCode }, 405);
@@ -55,39 +54,17 @@ export async function handleRecordsRequest(
 
   try {
     const repository = createRepository();
-    const url = new URL(request.url);
-
-    if (url.pathname === "/api/text-records") {
-      const input = parseTextExportRequest(payload);
-      if (input === null) {
-        return jsonResponse({ ok: false, error: "invalid_json" satisfies ErrorCode }, 400);
-      }
-
-      const eventDates = parsePiyologTextEventDates(input.text);
-      const events = parsePiyologTextEvents(input.text);
-      const result = await repository.insertTextExport({
-        ...input,
-        sourceIp: request.headers.get("cf-connecting-ip"),
-        userAgent: request.headers.get("user-agent"),
-      });
-
-      if (result.id !== null && eventDates.length > 0) {
-        await repository.deleteEventsByDates(eventDates);
-      }
-
-      if (result.id !== null && events.length > 0) {
-        await repository.insertEvents(result.id, events);
-      }
-
-      return jsonResponse({ ok: true, id: result.id, events: events.length }, 200);
+    const input = parseTextExportRequest(payload);
+    if (input === null) {
+      return jsonResponse({ ok: false, error: "invalid_json" satisfies ErrorCode }, 400);
     }
 
-    const eventDates = parsePiyologEventDates(payload);
-    const events = parsePiyologEvents(payload);
-    const result = await repository.insert({
+    const eventDates = parsePiyologTextEventDates(input.text);
+    const events = parsePiyologTextEvents(input.text);
+    const result = await repository.insertTextExport({
+      ...input,
       sourceIp: request.headers.get("cf-connecting-ip"),
       userAgent: request.headers.get("user-agent"),
-      payload,
     });
 
     if (result.id !== null && eventDates.length > 0) {
@@ -98,9 +75,9 @@ export async function handleRecordsRequest(
       await repository.insertEvents(result.id, events);
     }
 
-    return jsonResponse({ ok: true, id: result.id }, 200);
+    return jsonResponse({ ok: true, id: result.id, events: events.length }, 200);
   } catch (error) {
-    console.error("Failed to insert Piyolog raw payload", summarizeError(error));
+    console.error("Failed to insert Piyolog text export", summarizeError(error));
     return jsonResponse({ ok: false, error: "internal_error" satisfies ErrorCode }, 500);
   }
 }

@@ -1,12 +1,12 @@
-import { handleRecordsRequest } from "./handler";
-import { createTiDBRawPayloadRepository } from "./repository";
+import { handleTextRecordsRequest } from "./handler";
+import { createTiDBPiyologRepository } from "./repository";
 import type { Env } from "./types";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (!["/api/records", "/api/text-records"].includes(url.pathname)) {
+    if (url.pathname !== "/api/text-records") {
       return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
         status: 404,
         headers: {
@@ -15,8 +15,8 @@ export default {
       });
     }
 
-    return handleRecordsRequest(request, env, () =>
-      createTiDBRawPayloadRepository(env.DATABASE_URL),
+    return handleTextRecordsRequest(request, env, () =>
+      createTiDBPiyologRepository(env.DATABASE_URL),
     );
   },
 };

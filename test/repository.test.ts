@@ -1,8 +1,8 @@
 import { connect } from "@tidbcloud/serverless";
 import { describe, expect, it, vi } from "vitest";
 import {
-  createTiDBRawPayloadRepository,
-  TiDBRawPayloadRepository,
+  createTiDBPiyologRepository,
+  TiDBPiyologRepository,
 } from "../src/repository";
 
 vi.mock("@tidbcloud/serverless", () => ({
@@ -27,36 +27,10 @@ class FakeConnection {
   }
 }
 
-describe("TiDBRawPayloadRepository", () => {
-  it("inserts raw payload JSON and metadata", async () => {
-    const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
-
-    const result = await repository.insert({
-      sourceIp: "203.0.113.10",
-      userAgent: "Piyolog Custom Action",
-      payload: { records: [{ type: "milk", amount: 50 }] },
-    });
-
-    expect(result).toEqual({ id: 42 });
-    expect(connection.calls).toEqual([
-      {
-        sql: `
-INSERT INTO raw_piyolog_payloads (source_ip, user_agent, payload_json)
-VALUES (?, ?, CAST(? AS JSON))
-        `.trim(),
-        params: [
-          "203.0.113.10",
-          "Piyolog Custom Action",
-          JSON.stringify({ records: [{ type: "milk", amount: 50 }] }),
-        ],
-      },
-    ]);
-  });
-
+describe("TiDBPiyologRepository", () => {
   it("inserts raw text export and metadata", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     const result = await repository.insertTextExport({
       source: "google_drive_text_export",
@@ -96,45 +70,43 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
     ]);
   });
 
-  it("inserts parsed events for a raw payload", async () => {
+  it("inserts parsed events for a raw text export", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await repository.insertEvents(42, [
       {
         babyNickname: "凛ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 04:30:00",
-        eventType: "Formula",
+        eventType: "ミルク",
         amountValue: 50,
         amountUnit: "ml",
         leftSeconds: null,
         rightSeconds: null,
         lastSide: null,
         rawEvent: {
-          hour: 4,
-          minute: 30,
-          type: "Formula",
-          value: { unit: "ml", value: 50 },
+          source: "text_export",
+          label: "ミルク",
+          note: null,
+          rawLine: "04:30   ミルク 50ml",
         },
       },
       {
         babyNickname: "凛ちゃん",
         eventDate: "2026-05-21",
         occurredAt: "2026-05-21 13:10:00",
-        eventType: "BreastFeeding",
+        eventType: "母乳",
         amountValue: null,
         amountUnit: null,
-        leftSeconds: 397.8564898967743,
-        rightSeconds: 128.1482539176941,
+        leftSeconds: 420,
+        rightSeconds: 300,
         lastSide: "right",
         rawEvent: {
-          hour: 13,
-          minute: 10,
-          type: "BreastFeeding",
-          leftTime: 397.8564898967743,
-          rightTime: 128.1482539176941,
-          last: "right",
+          source: "text_export",
+          label: "母乳",
+          note: null,
+          rawLine: "13:10   母乳 左7分 ▶ 右5分",
         },
       },
     ]);
@@ -162,35 +134,33 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
           "凛ちゃん",
           "2026-05-21",
           "2026-05-21 04:30:00",
-          "Formula",
+          "ミルク",
           50,
           "ml",
           null,
           null,
           null,
           JSON.stringify({
-            hour: 4,
-            minute: 30,
-            type: "Formula",
-            value: { unit: "ml", value: 50 },
+            source: "text_export",
+            label: "ミルク",
+            note: null,
+            rawLine: "04:30   ミルク 50ml",
           }),
           42,
           "凛ちゃん",
           "2026-05-21",
           "2026-05-21 13:10:00",
-          "BreastFeeding",
+          "母乳",
           null,
           null,
-          397.8564898967743,
-          128.1482539176941,
+          420,
+          300,
           "right",
           JSON.stringify({
-            hour: 13,
-            minute: 10,
-            type: "BreastFeeding",
-            leftTime: 397.8564898967743,
-            rightTime: 128.1482539176941,
-            last: "right",
+            source: "text_export",
+            label: "母乳",
+            note: null,
+            rawLine: "13:10   母乳 左7分 ▶ 右5分",
           }),
         ],
       },
@@ -199,7 +169,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("deletes normalized events for the received event dates", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await repository.deleteEventsByDates(["2026-05-20", "2026-05-21"]);
 
@@ -213,7 +183,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("skips deleting events when there are no received event dates", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await repository.deleteEventsByDates([]);
 
@@ -222,7 +192,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("deduplicates event dates before deleting normalized events", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await repository.deleteEventsByDates(["2026-05-21", "2026-05-20", "2026-05-21"]);
 
@@ -236,7 +206,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("skips event insertion when there are no parsed events", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await repository.insertEvents(42, []);
 
@@ -249,12 +219,16 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
         return { lastInsertId: null };
       },
     };
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
-    const result = await repository.insert({
+    const result = await repository.insertTextExport({
+      source: "google_drive_text_export",
+      fileId: null,
+      fileName: null,
+      updatedAt: null,
       sourceIp: null,
       userAgent: null,
-      payload: { ok: true },
+      text: "2026/5/22(金)",
     });
 
     expect(result).toEqual({ id: null });
@@ -266,19 +240,23 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
         return { lastInsertId: "9007199254740992" };
       },
     };
-    const repository = new TiDBRawPayloadRepository(connection);
+    const repository = new TiDBPiyologRepository(connection);
 
     await expect(
-      repository.insert({
+      repository.insertTextExport({
+        source: "google_drive_text_export",
+        fileId: null,
+        fileName: null,
+        updatedAt: null,
         sourceIp: null,
         userAgent: null,
-        payload: { ok: true },
+        text: "2026/5/22(金)",
       }),
     ).rejects.toThrow("Unsafe TiDB insert id");
   });
 
   it("creates a full-result TiDB connection", () => {
-    createTiDBRawPayloadRepository("mysql://example");
+    createTiDBPiyologRepository("mysql://example");
 
     expect(connect).toHaveBeenCalledWith({
       url: "mysql://example",

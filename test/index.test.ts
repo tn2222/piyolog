@@ -29,9 +29,9 @@ describe("worker entrypoint", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("does not create a repository for non-POST records requests", async () => {
+  it("does not create a repository for non-POST text record requests", async () => {
     const response = await worker.fetch(
-      new Request("https://example.com/api/records?token=secret-token", {
+      new Request("https://example.com/api/text-records?token=secret-token", {
         method: "GET",
       }),
       env,
@@ -42,9 +42,9 @@ describe("worker entrypoint", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("does not create a repository for unauthorized records requests", async () => {
+  it("does not create a repository for unauthorized text record requests", async () => {
     const response = await worker.fetch(
-      new Request("https://example.com/api/records?token=wrong", {
+      new Request("https://example.com/api/text-records?token=wrong", {
         method: "POST",
         body: "{}",
       }),
@@ -54,23 +54,6 @@ describe("worker entrypoint", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ ok: false, error: "unauthorized" });
     expect(connect).not.toHaveBeenCalled();
-  });
-
-  it("creates a repository for valid records requests", async () => {
-    const response = await worker.fetch(
-      new Request("https://example.com/api/records?token=secret-token", {
-        method: "POST",
-        body: JSON.stringify({ records: [] }),
-      }),
-      env,
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, id: 123 });
-    expect(connect).toHaveBeenCalledWith({
-      url: "mysql://example",
-      fullResult: true,
-    });
   });
 
   it("creates a repository for valid text record requests", async () => {

@@ -1,4 +1,4 @@
-import type { PiyologEventInput } from "./piyolog";
+import type { PiyologEventInput } from "./types";
 
 type DateParts = {
   year: number;
