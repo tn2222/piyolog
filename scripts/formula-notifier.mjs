@@ -26,7 +26,7 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is required. Put it in .env or export it in the shell.");
 }
 
-const notifyBeforeMinutes = parsePositiveInteger(process.env.FORMULA_NOTIFY_BEFORE_MINUTES, 15);
+const notifyBeforeMinutes = parsePositiveInteger(process.env.FORMULA_NOTIFY_BEFORE_MINUTES, 35);
 const stateFile = process.env.FORMULA_NOTIFIER_STATE_FILE ?? DEFAULT_STATE_FILE;
 
 const conn = connect({ url: databaseUrl, fullResult: true });
