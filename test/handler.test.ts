@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleTextRecordsRequest } from "../src/handler";
-import type { PiyologEventInput, PiyologRepository, TextExportInput } from "../src/types";
+import type {
+  CompareMetricInput,
+  PiyologEventInput,
+  PiyologRepositoryInterface,
+  SummarizePeriodInput,
+  TextExportInput,
+} from "../src/types";
 
-class MemoryRepository implements PiyologRepository {
+class MemoryRepository implements PiyologRepositoryInterface {
   public insertedTextExports: TextExportInput[] = [];
   public replacedEventDates: string[][] = [];
   public insertedEvents: Array<{ rawTextExportId: number; events: PiyologEventInput[] }> = [];
@@ -19,11 +25,31 @@ class MemoryRepository implements PiyologRepository {
   async deleteEventsByDates(eventDates: string[]) {
     this.replacedEventDates.push(eventDates);
   }
+
+  async compareMetric(input: CompareMetricInput) {
+    return {
+      metric: input.metric,
+      currentRange: input.currentRange,
+      previousRange: input.previousRange,
+      rows: [],
+    };
+  }
+
+  async summarizePeriod(input: SummarizePeriodInput) {
+    return {
+      range: input.range,
+      granularity: input.granularity,
+      rows: [],
+    };
+  }
 }
 
 const env = {
   INGEST_TOKEN: "secret-token",
   DATABASE_URL: "mysql://example",
+  SLACK_COMMAND_TOKEN: "slack-token",
+  PERSONAL_LLM_GATEWAY_URL: "https://llm.example.com",
+  PERSONAL_LLM_GATEWAY_TOKEN: "gateway-token",
 };
 
 describe("handleTextRecordsRequest", () => {
@@ -204,7 +230,7 @@ describe("handleTextRecordsRequest", () => {
 
   it("returns 500 when persistence fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const repository: PiyologRepository = {
+    const repository: PiyologRepositoryInterface = {
       async insertTextExport() {
         throw new Error("database unavailable");
       },
@@ -212,6 +238,12 @@ describe("handleTextRecordsRequest", () => {
         throw new Error("unreachable");
       },
       async insertEvents() {
+        throw new Error("unreachable");
+      },
+      async compareMetric() {
+        throw new Error("unreachable");
+      },
+      async summarizePeriod() {
         throw new Error("unreachable");
       },
     };
