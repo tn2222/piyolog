@@ -4,6 +4,22 @@ export type DateRange = {
 };
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const dateTimePattern =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+const tokyoDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Tokyo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const tokyoTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Tokyo",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
+});
 
 export function parseDateRange(input: unknown): DateRange | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
@@ -11,17 +27,19 @@ export function parseDateRange(input: unknown): DateRange | null {
   }
 
   const record = input as Record<string, unknown>;
-  if (!isValidDateString(record.from) || !isValidDateString(record.to)) {
+  const from = parseDateRangeBound(record.from, "from");
+  const to = parseDateRangeBound(record.to, "to");
+  if (from === null || to === null) {
     return null;
   }
 
-  if (record.from >= record.to) {
+  if (from >= to) {
     return null;
   }
 
   return {
-    from: record.from,
-    to: record.to,
+    from,
+    to,
   };
 }
 
@@ -38,4 +56,48 @@ function isValidDateString(value: unknown): value is string {
 
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function parseDateRangeBound(value: unknown, boundary: "from" | "to"): string | null {
+  if (isValidDateString(value)) {
+    return value;
+  }
+  if (typeof value !== "string" || !dateTimePattern.test(value)) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const dateString = formatTokyoDate(date);
+  if (boundary === "from" || isStartOfTokyoDay(date)) {
+    return dateString;
+  }
+
+  return addDays(dateString, 1);
+}
+
+function formatTokyoDate(date: Date): string {
+  return tokyoDateFormatter.format(date);
+}
+
+function isStartOfTokyoDay(date: Date): boolean {
+  const parts = Object.fromEntries(
+    tokyoTimeFormatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+
+  return (
+    parts.hour === "00" &&
+    parts.minute === "00" &&
+    parts.second === "00" &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
+function addDays(dateString: string, days: number): string {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
