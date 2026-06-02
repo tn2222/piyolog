@@ -12,7 +12,7 @@ describe("handleSlackCommandRequest", () => {
     );
 
     expect(response.status).toBe(405);
-    expect(await response.json()).toEqual({ ok: false, error: "method_not_allowed" });
+    expect(await response.json()).toEqual({ error: "method_not_allowed" });
   });
 
   it("rejects invalid Slack command tokens", async () => {
@@ -32,7 +32,7 @@ describe("handleSlackCommandRequest", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ ok: false, error: "unauthorized" });
+    expect(await response.json()).toEqual({ error: "unauthorized" });
   });
 
   it("passes slash command text to the assistant use case", async () => {
