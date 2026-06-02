@@ -48,11 +48,13 @@ class FakeRepository implements PiyologRepositoryInterface {
 }
 
 class FakeLlmGateway implements LlmGatewayInterface {
+  public selectedToolRequests: unknown[] = [];
   public generatedAnswers: unknown[] = [];
 
   constructor(private readonly selectedTool: unknown) {}
 
-  async selectTool() {
+  async selectTool(input: Parameters<LlmGatewayInterface["selectTool"]>[0]) {
+    this.selectedToolRequests.push(input);
     return this.selectedTool;
   }
 
@@ -79,6 +81,7 @@ describe("askAssistant", () => {
     const result = await askAssistant({
       text: "先週と比べてミルク量増えた？",
       timezone: "Asia/Tokyo",
+      now: new Date("2026-06-03T08:15:30+09:00"),
       repository,
       llmGateway,
     });
@@ -94,6 +97,17 @@ describe("askAssistant", () => {
         previousRange: { from: "2026-05-17", to: "2026-05-24" },
         aggregation: "sum",
         groupBy: "none",
+      },
+    ]);
+    expect(llmGateway.selectedToolRequests).toEqual([
+      {
+        app: "piyolog",
+        task: "tool_selection",
+        modelPolicy: "fast",
+        userText: "先週と比べてミルク量増えた？",
+        tools: expect.any(Array),
+        timezone: "Asia/Tokyo",
+        now: "2026-06-03T08:15:30+09:00",
       },
     ]);
     expect(llmGateway.generatedAnswers).toEqual([

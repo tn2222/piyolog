@@ -9,6 +9,7 @@ import type { PiyologRepositoryInterface } from "../types";
 export type AskAssistantInput = {
   text: string;
   timezone: string;
+  now?: Date;
   repository: PiyologRepositoryInterface;
   llmGateway: LlmGatewayInterface;
 };
@@ -36,6 +37,7 @@ export async function askAssistant(input: AskAssistantInput): Promise<AskAssista
       userText: input.text,
       tools: getBabyLogToolDefinitions(),
       timezone: input.timezone,
+      now: formatDateTimeWithOffset(input.now ?? new Date(), input.timezone),
     });
   } catch (error) {
     console.error("Failed to select baby log tool", summarizeError(error));
@@ -100,4 +102,54 @@ function summarizeError(error: unknown): { name: string } {
   return {
     name: error instanceof Error ? error.name : typeof error,
   };
+}
+
+function formatDateTimeWithOffset(date: Date, timezone: string): string {
+  const parts = formatDateTimeParts(date, timezone);
+  const offsetMinutes = calculateTimezoneOffsetMinutes(date, parts);
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${formatOffset(offsetMinutes)}`;
+}
+
+function formatDateTimeParts(date: Date, timezone: string): Record<string, string> {
+  return Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
+}
+
+function calculateTimezoneOffsetMinutes(
+  date: Date,
+  parts: Record<string, string>,
+): number {
+  const zonedTimeAsUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+
+  return Math.round((zonedTimeAsUtc - date.getTime()) / 60_000);
+}
+
+function formatOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, "0");
+  const minutes = String(absoluteMinutes % 60).padStart(2, "0");
+
+  return `${sign}${hours}:${minutes}`;
 }
