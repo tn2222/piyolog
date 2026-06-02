@@ -1,9 +1,9 @@
 import { connect } from "@tidbcloud/serverless";
 import { describe, expect, it, vi } from "vitest";
 import {
-  createTiDBPiyologRepository,
-  TiDBPiyologRepository,
-} from "../src/repository";
+  createTiDBBabyLogRepository,
+  TiDBBabyLogRepository,
+} from "../src/gateway/tidbBabyLogRepository";
 
 vi.mock("@tidbcloud/serverless", () => ({
   connect: vi.fn(() => ({
@@ -27,10 +27,10 @@ class FakeConnection {
   }
 }
 
-describe("TiDBPiyologRepository", () => {
+describe("TiDBBabyLogRepository", () => {
   it("inserts raw text export and metadata", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     const result = await repository.insertTextExport({
       source: "google_drive_text_export",
@@ -72,7 +72,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 
   it("inserts parsed events for a raw text export", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await repository.insertEvents(42, [
       {
@@ -169,7 +169,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("deletes normalized events for the received event dates", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await repository.deleteEventsByDates(["2026-05-20", "2026-05-21"]);
 
@@ -183,7 +183,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("skips deleting events when there are no received event dates", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await repository.deleteEventsByDates([]);
 
@@ -192,7 +192,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("deduplicates event dates before deleting normalized events", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await repository.deleteEventsByDates(["2026-05-21", "2026-05-20", "2026-05-21"]);
 
@@ -206,7 +206,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
 
   it("skips event insertion when there are no parsed events", async () => {
     const connection = new FakeConnection();
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await repository.insertEvents(42, []);
 
@@ -219,7 +219,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
         return { lastInsertId: null };
       },
     };
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     const result = await repository.insertTextExport({
       source: "google_drive_text_export",
@@ -240,7 +240,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
         return { lastInsertId: "9007199254740992" };
       },
     };
-    const repository = new TiDBPiyologRepository(connection);
+    const repository = new TiDBBabyLogRepository(connection);
 
     await expect(
       repository.insertTextExport({
@@ -256,11 +256,90 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, ?, ?, ?,
   });
 
   it("creates a full-result TiDB connection", () => {
-    createTiDBPiyologRepository("mysql://example");
+    createTiDBBabyLogRepository("mysql://example");
 
     expect(connect).toHaveBeenCalledWith({
       url: "mysql://example",
       fullResult: true,
     });
+  });
+
+  it("compares milk amount with parameterized SQL", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBBabyLogRepository(connection);
+
+    await repository.compareMetric({
+      metric: "milk_amount",
+      currentRange: { from: "2026-05-24", to: "2026-05-31" },
+      previousRange: { from: "2026-05-17", to: "2026-05-24" },
+      aggregation: "sum",
+      groupBy: "none",
+    });
+
+    expect(connection.calls).toEqual([
+      {
+        sql: `
+SELECT
+  CASE
+    WHEN occurred_at >= ? AND occurred_at < ? THEN 'current'
+    WHEN occurred_at >= ? AND occurred_at < ? THEN 'previous'
+  END AS period,
+  COALESCE(SUM(amount_value), 0) AS value,
+  COUNT(*) AS event_count
+FROM piyolog_events
+WHERE occurred_at >= ?
+  AND occurred_at < ?
+  AND event_type = ?
+  AND amount_unit = ?
+GROUP BY period
+        `.trim(),
+        params: [
+          "2026-05-24 00:00:00",
+          "2026-05-31 00:00:00",
+          "2026-05-17 00:00:00",
+          "2026-05-24 00:00:00",
+          "2026-05-17 00:00:00",
+          "2026-05-31 00:00:00",
+          "ミルク",
+          "ml",
+        ],
+      },
+    ]);
+  });
+
+  it("loads all period events for summary analysis with parameterized SQL", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBBabyLogRepository(connection);
+
+    await repository.summarizePeriod({
+      range: { from: "2026-05-01", to: "2026-06-01" },
+      granularity: "day",
+      includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+    });
+
+    expect(connection.calls).toEqual([
+      {
+        sql: `
+SELECT
+  occurred_at,
+  event_date,
+  event_type,
+  amount_value,
+  amount_unit,
+  left_seconds,
+  right_seconds,
+  last_side,
+  raw_event
+FROM piyolog_events
+WHERE occurred_at >= ?
+  AND occurred_at < ?
+ORDER BY occurred_at
+        `.trim(),
+        params: [
+          "2026-05-01 00:00:00",
+          "2026-06-01 00:00:00",
+        ],
+      },
+    ]);
   });
 });

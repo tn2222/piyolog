@@ -1,6 +1,17 @@
+import type {
+  AggregationName,
+  CompareGroupByName,
+  MetricName,
+  SummaryGranularityName,
+} from "./domain/tools";
+import type { DateRange } from "./domain/periods";
+
 export type Env = {
   INGEST_TOKEN: string;
   DATABASE_URL: string;
+  SLACK_COMMAND_TOKEN: string;
+  PERSONAL_LLM_GATEWAY_URL: string;
+  PERSONAL_LLM_GATEWAY_TOKEN: string;
 };
 
 export type PiyologEventInput = {
@@ -30,10 +41,39 @@ export type TextExportInput = {
   text: string;
 };
 
-export type PiyologRepository = {
+export type CompareMetricInput = {
+  metric: MetricName;
+  currentRange: DateRange;
+  previousRange: DateRange;
+  aggregation: AggregationName;
+  groupBy: CompareGroupByName;
+};
+
+export type CompareMetricResult = {
+  metric: MetricName;
+  currentRange: DateRange;
+  previousRange: DateRange;
+  rows: Record<string, unknown>[];
+};
+
+export type SummarizePeriodInput = {
+  range: DateRange;
+  granularity: SummaryGranularityName;
+  includeMetrics: MetricName[];
+};
+
+export type SummarizePeriodResult = {
+  range: DateRange;
+  granularity: SummaryGranularityName;
+  rows: Record<string, unknown>[];
+};
+
+export type PiyologRepositoryInterface = {
   insertTextExport(input: TextExportInput): Promise<InsertResult>;
   deleteEventsByDates(eventDates: string[]): Promise<void>;
   insertEvents(rawTextExportId: number, events: PiyologEventInput[]): Promise<void>;
+  compareMetric(input: CompareMetricInput): Promise<CompareMetricResult>;
+  summarizePeriod(input: SummarizePeriodInput): Promise<SummarizePeriodResult>;
 };
 
-export type PiyologRepositoryFactory = () => PiyologRepository;
+export type PiyologRepositoryFactory = () => PiyologRepositoryInterface;
