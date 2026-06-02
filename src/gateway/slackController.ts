@@ -10,12 +10,12 @@ export async function handleSlackCommandRequest(
   dependencies: SlackCommandDependencies,
 ): Promise<Response> {
   if (request.method !== "POST") {
-    return jsonResponse({ ok: false, error: "method_not_allowed" }, 405);
+    return jsonResponse({ error: "method_not_allowed" }, 405);
   }
 
   const form = await request.formData();
   if (form.get("token") !== dependencies.slackCommandToken) {
-    return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   const text = form.get("text");
