@@ -1,4 +1,4 @@
-import { parseDateRange, type DateRange } from "./periods";
+import { calculateDateRangeDays, parseDateRange, type DateRange } from "./periods";
 
 export const metricNames = [
   "milk_amount",
@@ -10,6 +10,7 @@ export const metricNames = [
 const aggregationNames = ["sum", "count", "average"] as const;
 const compareGroupByNames = ["none", "day", "week"] as const;
 const summaryGranularityNames = ["none", "day", "week", "month"] as const;
+const maxSummarizePeriodDays = 35;
 
 export type MetricName = (typeof metricNames)[number];
 export type AggregationName = (typeof aggregationNames)[number];
@@ -149,7 +150,12 @@ function parseSummarizePeriodToolCall(input: unknown): SummarizePeriodToolCall |
   const granularity = parseEnum(record.granularity, summaryGranularityNames);
   const includeMetrics = parseMetricList(record.includeMetrics);
 
-  if (range === null || granularity === null || includeMetrics === null) {
+  if (
+    range === null ||
+    granularity === null ||
+    includeMetrics === null ||
+    calculateDateRangeDays(range) > maxSummarizePeriodDays
+  ) {
     return null;
   }
 

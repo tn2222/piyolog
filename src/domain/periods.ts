@@ -25,6 +25,12 @@ export function parseDateRange(input: unknown): DateRange | null {
   };
 }
 
+export function calculateDateRangeDays(range: DateRange): number {
+  const from = Date.parse(`${range.from}T00:00:00.000Z`);
+  const to = Date.parse(`${range.to}T00:00:00.000Z`);
+  return (to - from) / 86_400_000;
+}
+
 function isValidDateString(value: unknown): value is string {
   if (typeof value !== "string" || !datePattern.test(value)) {
     return false;

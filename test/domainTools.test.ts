@@ -103,6 +103,39 @@ describe("parseBabyLogToolCall", () => {
       }),
     ).toThrow("Invalid baby log tool call");
   });
+
+  it("rejects summarize_period ranges longer than 35 days", () => {
+    expect(() =>
+      parseBabyLogToolCall({
+        toolName: "summarize_period",
+        arguments: {
+          range: { from: "2026-05-01", to: "2026-06-06" },
+          granularity: "day",
+          includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+        },
+      }),
+    ).toThrow("Invalid baby log tool call");
+  });
+
+  it("accepts summarize_period ranges up to 35 days", () => {
+    const toolCall = parseBabyLogToolCall({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-05-01", to: "2026-06-05" },
+        granularity: "day",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+      },
+    });
+
+    expect(toolCall).toEqual({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-05-01", to: "2026-06-05" },
+        granularity: "day",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+      },
+    });
+  });
 });
 
 describe("getBabyLogToolDefinitions", () => {
