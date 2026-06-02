@@ -7,6 +7,7 @@ export type ToolSelectionRequest = {
   userText: string;
   tools: BabyLogToolDefinition[];
   timezone: string;
+  now: string;
 };
 
 export type AnswerGenerationRequest = {

@@ -32,6 +32,7 @@ describe("HttpLlmGatewayClient", () => {
       userText: "先週と比べてミルク量増えた？",
       tools: [{ name: "compare_metric", description: "compare", parameters: {} }],
       timezone: "Asia/Tokyo",
+      now: "2026-06-03T08:15:30+09:00",
     }));
 
     expect(result.toolName).toBe("compare_metric");
@@ -48,6 +49,7 @@ describe("HttpLlmGatewayClient", () => {
         userText: "先週と比べてミルク量増えた？",
         tools: [{ name: "compare_metric", description: "compare", parameters: {} }],
         timezone: "Asia/Tokyo",
+        now: "2026-06-03T08:15:30+09:00",
       }),
     });
   });
