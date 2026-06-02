@@ -195,9 +195,19 @@ function dateRangeSchema(): Record<string, unknown> {
   return {
     type: "object",
     properties: {
-      from: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
-      to: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+      from: dateOrDateTimeSchema(),
+      to: dateOrDateTimeSchema(),
     },
     required: ["from", "to"],
+  };
+}
+
+function dateOrDateTimeSchema(): Record<string, unknown> {
+  return {
+    type: "string",
+    anyOf: [
+      { pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+      { format: "date-time" },
+    ],
   };
 }

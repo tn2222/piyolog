@@ -91,6 +91,29 @@ describe("parseBabyLogToolCall", () => {
     });
   });
 
+  it("normalizes ISO datetime ranges from the LLM Gateway", () => {
+    const toolCall = parseBabyLogToolCall({
+      toolName: "summarize_period",
+      arguments: {
+        range: {
+          from: "2026-06-02T00:00:00+09:00",
+          to: "2026-06-02T23:59:59+09:00",
+        },
+        granularity: "day",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+      },
+    });
+
+    expect(toolCall).toEqual({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-06-02", to: "2026-06-03" },
+        granularity: "day",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count"],
+      },
+    });
+  });
+
   it("rejects summarize_period tool calls without metrics", () => {
     expect(() =>
       parseBabyLogToolCall({
