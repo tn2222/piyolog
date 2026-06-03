@@ -41,6 +41,15 @@ export type TextExportInput = {
   text: string;
 };
 
+export type PiyologDiaryInput = {
+  babyNickname: string | null;
+  babyDateOfBirth: string | null;
+  babySex: string | null;
+  entryDate: string;
+  journal: string;
+  rawDay: Record<string, unknown>;
+};
+
 export type CompareMetricInput = {
   metric: MetricName;
   currentRange: DateRange;
@@ -70,6 +79,7 @@ export type SummarizePeriodResult = {
 
 export type PiyologRepositoryInterface = {
   insertTextExport(input: TextExportInput): Promise<InsertResult>;
+  upsertDiaries(diaries: PiyologDiaryInput[]): Promise<void>;
   deleteEventsByDates(eventDates: string[]): Promise<void>;
   insertEvents(rawTextExportId: number, events: PiyologEventInput[]): Promise<void>;
   compareMetric(input: CompareMetricInput): Promise<CompareMetricResult>;

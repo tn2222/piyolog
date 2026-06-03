@@ -70,6 +70,86 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
     ]);
   });
 
+  it("upserts diary journals by baby and entry date", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBBabyLogRepository(connection);
+
+    await repository.upsertDiaries([
+      {
+        babyNickname: "赤ちゃん",
+        babyDateOfBirth: "2026-05-06",
+        babySex: "Female",
+        entryDate: "2026-06-01",
+        journal: "今日はよく寝た",
+        rawDay: {
+          date: { year: 2026, month: 6, day: 1 },
+          journal: "今日はよく寝た",
+        },
+      },
+      {
+        babyNickname: "赤ちゃん",
+        babyDateOfBirth: "2026-05-06",
+        babySex: "Female",
+        entryDate: "2026-06-02",
+        journal: "",
+        rawDay: {
+          date: { year: 2026, month: 6, day: 2 },
+          journal: "",
+        },
+      },
+    ]);
+
+    expect(connection.calls).toEqual([
+      {
+        sql: `
+INSERT INTO piyolog_diaries (
+  baby_nickname,
+  baby_date_of_birth,
+  baby_sex,
+  entry_date,
+  journal,
+  raw_day
+)
+VALUES (?, ?, ?, ?, ?, CAST(? AS JSON)), (?, ?, ?, ?, ?, CAST(? AS JSON))
+ON DUPLICATE KEY UPDATE
+  baby_sex = VALUES(baby_sex),
+  journal = VALUES(journal),
+  raw_day = VALUES(raw_day),
+  updated_at = CURRENT_TIMESTAMP
+        `.trim(),
+        params: [
+          "赤ちゃん",
+          "2026-05-06",
+          "Female",
+          "2026-06-01",
+          "今日はよく寝た",
+          JSON.stringify({
+            date: { year: 2026, month: 6, day: 1 },
+            journal: "今日はよく寝た",
+          }),
+          "赤ちゃん",
+          "2026-05-06",
+          "Female",
+          "2026-06-02",
+          "",
+          JSON.stringify({
+            date: { year: 2026, month: 6, day: 2 },
+            journal: "",
+          }),
+        ],
+      },
+    ]);
+  });
+
+  it("skips diary upsert when there are no journals", async () => {
+    const connection = new FakeConnection();
+    const repository = new TiDBBabyLogRepository(connection);
+
+    await repository.upsertDiaries([]);
+
+    expect(connection.calls).toEqual([]);
+  });
+
   it("inserts parsed events for a raw text export", async () => {
     const connection = new FakeConnection();
     const repository = new TiDBBabyLogRepository(connection);

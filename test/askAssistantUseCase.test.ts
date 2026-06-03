@@ -16,6 +16,10 @@ class FakeRepository implements PiyologRepositoryInterface {
     return { id: null };
   }
 
+  async upsertDiaries() {
+    throw new Error("unreachable");
+  }
+
   async deleteEventsByDates() {
     throw new Error("unreachable");
   }

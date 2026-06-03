@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleTextRecordsRequest } from "../src/handler";
+import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "../src/handler";
 import type {
   CompareMetricInput,
   PiyologEventInput,
+  PiyologDiaryInput,
   PiyologRepositoryInterface,
   SummarizePeriodInput,
   TextExportInput,
@@ -10,12 +11,17 @@ import type {
 
 class MemoryRepository implements PiyologRepositoryInterface {
   public insertedTextExports: TextExportInput[] = [];
+  public upsertedDiaries: PiyologDiaryInput[][] = [];
   public replacedEventDates: string[][] = [];
   public insertedEvents: Array<{ rawTextExportId: number; events: PiyologEventInput[] }> = [];
 
   async insertTextExport(input: TextExportInput) {
     this.insertedTextExports.push(input);
     return { id: 456 };
+  }
+
+  async upsertDiaries(diaries: PiyologDiaryInput[]) {
+    this.upsertedDiaries.push(diaries);
   }
 
   async insertEvents(rawTextExportId: number, events: PiyologEventInput[]) {
@@ -234,6 +240,9 @@ describe("handleTextRecordsRequest", () => {
       async insertTextExport() {
         throw new Error("database unavailable");
       },
+      async upsertDiaries() {
+        throw new Error("unreachable");
+      },
       async deleteEventsByDates() {
         throw new Error("unreachable");
       },
@@ -258,5 +267,104 @@ describe("handleTextRecordsRequest", () => {
     expect(await response.json()).toEqual({ ok: false, error: "internal_error" });
     expect(consoleError).toHaveBeenCalledOnce();
     consoleError.mockRestore();
+  });
+});
+
+describe("handleCustomActionCaptureRequest", () => {
+  it("rejects non-POST requests", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/custom-action-captures?token=secret-token", {
+      method: "GET",
+    });
+
+    const response = await handleCustomActionCaptureRequest(request, env, () => repository);
+
+    expect(response.status).toBe(405);
+    expect(await response.json()).toEqual({ ok: false, error: "method_not_allowed" });
+    expect(repository.upsertedDiaries).toHaveLength(0);
+  });
+
+  it("rejects unauthorized requests", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/custom-action-captures?token=wrong", {
+      method: "POST",
+      body: "{}",
+    });
+
+    const response = await handleCustomActionCaptureRequest(request, env, () => repository);
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ ok: false, error: "unauthorized" });
+    expect(repository.upsertedDiaries).toHaveLength(0);
+  });
+
+  it("rejects invalid JSON", async () => {
+    const repository = new MemoryRepository();
+    const request = new Request("https://example.com/api/custom-action-captures?token=secret-token", {
+      method: "POST",
+      body: "{not-json",
+    });
+
+    const response = await handleCustomActionCaptureRequest(request, env, () => repository);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "invalid_json" });
+    expect(repository.upsertedDiaries).toHaveLength(0);
+  });
+
+  it("upserts diary journals from custom action JSON", async () => {
+    const repository = new MemoryRepository();
+    const payload = {
+      baby: {
+        nickname: "赤ちゃん",
+        sex: "Female",
+        dateOfBirth: { year: 2026, month: 5, day: 6 },
+      },
+      days: [
+        {
+          date: { year: 2026, month: 6, day: 1 },
+          events: [{ type: "Formula" }],
+          journal: "今日はよく寝た",
+        },
+        {
+          date: { year: 2026, month: 6, day: 2 },
+          events: [],
+          journal: "",
+        },
+      ],
+    };
+    const request = new Request("https://example.com/api/custom-action-captures?token=secret-token", {
+      method: "POST",
+      headers: {
+        "cf-connecting-ip": "203.0.113.20",
+        "user-agent": "PiyologCustomAction",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const response = await handleCustomActionCaptureRequest(request, env, () => repository);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, diaries: 2 });
+    expect(repository.upsertedDiaries).toEqual([
+      [
+        {
+          babyNickname: "赤ちゃん",
+          babyDateOfBirth: "2026-05-06",
+          babySex: "Female",
+          entryDate: "2026-06-01",
+          journal: "今日はよく寝た",
+          rawDay: payload.days[0],
+        },
+        {
+          babyNickname: "赤ちゃん",
+          babyDateOfBirth: "2026-05-06",
+          babySex: "Female",
+          entryDate: "2026-06-02",
+          journal: "",
+          rawDay: payload.days[1],
+        },
+      ],
+    ]);
   });
 });
