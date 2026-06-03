@@ -33,13 +33,13 @@ export function parseDateRange(input: unknown): DateRange | null {
     return null;
   }
 
-  if (from >= to) {
+  if (from > to) {
     return null;
   }
 
   return {
     from,
-    to,
+    to: from === to ? addDays(to, 1) : to,
   };
 }
 

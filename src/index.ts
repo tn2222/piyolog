@@ -6,12 +6,17 @@ import { createTiDBPiyologRepository } from "./repository";
 import type { Env } from "./types";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/slack/commands") {
       return handleSlackCommandRequest(request, {
         slackCommandToken: env.SLACK_COMMAND_TOKEN,
+        waitUntil: (task) => ctx.waitUntil(task),
         askAssistant: (text) =>
           askAssistant({
             text,

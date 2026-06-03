@@ -110,4 +110,72 @@ describe("HttpLlmGatewayClient", () => {
       }),
     ).rejects.toThrow("LLM Gateway request failed");
   });
+
+  it("includes the gateway path when fetch fails", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    const client = new HttpLlmGatewayClient({
+      baseUrl: "https://llm.example.com",
+      token: "gateway-token",
+      fetch: fetchMock,
+    });
+
+    await expect(
+      client.selectTool({
+        app: "piyolog",
+        task: "tool_selection",
+        modelPolicy: "fast",
+        userText: "昨日の育児ログのサマリーをして",
+        tools: [],
+        timezone: "Asia/Tokyo",
+        now: "2026-06-03T09:30:00+09:00",
+      }),
+    ).rejects.toThrow("LLM Gateway fetch failed: /v1/tool-selection: Failed to fetch");
+  });
+
+  it("does not call fetch with the client instance as this", async () => {
+    const fetchMock = vi.fn(function (this: unknown) {
+      if (this instanceof HttpLlmGatewayClient) {
+        throw new TypeError("Illegal invocation");
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            toolName: "summarize_period",
+            arguments: {
+              range: { from: "2026-06-02", to: "2026-06-03" },
+              granularity: "day",
+              includeMetrics: ["event_count"],
+            },
+          }),
+        ),
+      );
+    });
+    const client = new HttpLlmGatewayClient({
+      baseUrl: "https://llm.example.com",
+      token: "gateway-token",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(
+      client.selectTool({
+        app: "piyolog",
+        task: "tool_selection",
+        modelPolicy: "fast",
+        userText: "昨日の育児ログのサマリーをして",
+        tools: [],
+        timezone: "Asia/Tokyo",
+        now: "2026-06-03T09:30:00+09:00",
+      }),
+    ).resolves.toEqual({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-06-02", to: "2026-06-03" },
+        granularity: "day",
+        includeMetrics: ["event_count"],
+      },
+    });
+  });
 });
