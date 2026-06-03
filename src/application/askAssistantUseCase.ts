@@ -50,7 +50,11 @@ export async function askAssistant(input: AskAssistantInput): Promise<AskAssista
   let toolCall: BabyLogToolCall;
   try {
     toolCall = parseBabyLogToolCall(selectedTool);
-  } catch {
+  } catch (error) {
+    console.error("Invalid baby log tool selection", {
+      error: summarizeError(error),
+      selectedTool: summarizeJson(selectedTool),
+    });
     return {
       ok: false,
       text: "うまく質問を読み取れませんでした。聞き方を少し変えてもう一度試してください。",
@@ -98,10 +102,19 @@ async function executeToolCall(
   }
 }
 
-function summarizeError(error: unknown): { name: string } {
+function summarizeError(error: unknown): { name: string; message: string } {
   return {
     name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
   };
+}
+
+function summarizeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value).slice(0, 2_000);
+  } catch {
+    return "[unserializable]";
+  }
 }
 
 function formatDateTimeWithOffset(date: Date, timezone: string): string {

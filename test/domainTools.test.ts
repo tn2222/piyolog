@@ -114,6 +114,31 @@ describe("parseBabyLogToolCall", () => {
     });
   });
 
+  it("normalizes same-day date ranges from the LLM Gateway as a one-day range", () => {
+    const toolCall = parseBabyLogToolCall({
+      type: "tool_call",
+      toolName: "summarize_period",
+      arguments: {
+        range: {
+          from: "2026-06-02",
+          to: "2026-06-02",
+        },
+        granularity: "none",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count", "event_count"],
+      },
+      confidence: null,
+    });
+
+    expect(toolCall).toEqual({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-06-02", to: "2026-06-03" },
+        granularity: "none",
+        includeMetrics: ["milk_amount", "sleep_duration", "diaper_count", "event_count"],
+      },
+    });
+  });
+
   it("rejects summarize_period tool calls without metrics", () => {
     expect(() =>
       parseBabyLogToolCall({

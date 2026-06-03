@@ -3,6 +3,8 @@ import type { AskAssistantResult } from "../application/askAssistantUseCase";
 type SlackCommandDependencies = {
   slackCommandToken: string;
   askAssistant(text: string): Promise<AskAssistantResult>;
+  waitUntil(task: Promise<void>): void;
+  fetch?: typeof fetch;
 };
 
 export async function handleSlackCommandRequest(
@@ -19,6 +21,23 @@ export async function handleSlackCommandRequest(
   }
 
   const text = form.get("text");
+  const commandText = typeof text === "string" ? text : "";
+  const responseUrl = form.get("response_url");
+
+  if (typeof responseUrl === "string" && responseUrl.length > 0) {
+    dependencies.waitUntil(
+      postAssistantResult(responseUrl, commandText, dependencies),
+    );
+
+    return jsonResponse(
+      {
+        response_type: "ephemeral",
+        text: "育児ログを確認しています。少し待ってください。",
+      },
+      200,
+    );
+  }
+
   const result = await dependencies.askAssistant(typeof text === "string" ? text : "");
 
   return jsonResponse(
@@ -36,5 +55,25 @@ function jsonResponse(body: unknown, status: number): Response {
     headers: {
       "content-type": "application/json; charset=utf-8",
     },
+  });
+}
+
+async function postAssistantResult(
+  responseUrl: string,
+  text: string,
+  dependencies: SlackCommandDependencies,
+): Promise<void> {
+  const result = await dependencies.askAssistant(text);
+  const post = dependencies.fetch ?? fetch;
+
+  await post(responseUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({
+      response_type: "ephemeral",
+      text: result.text,
+    }),
   });
 }

@@ -18,6 +18,12 @@ const env = {
   PERSONAL_LLM_GATEWAY_TOKEN: "gateway-token",
 };
 
+const ctx = {
+  waitUntil: vi.fn(),
+  passThroughOnException: vi.fn(),
+  props: {},
+} satisfies ExecutionContext;
+
 describe("worker entrypoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,7 +31,11 @@ describe("worker entrypoint", () => {
   });
 
   it("returns 404 JSON for unknown paths", async () => {
-    const response = await worker.fetch(new Request("https://example.com/unknown"), env);
+    const response = await worker.fetch(
+      new Request("https://example.com/unknown"),
+      env,
+      ctx,
+    );
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ ok: false, error: "not_found" });
@@ -38,6 +48,7 @@ describe("worker entrypoint", () => {
         method: "GET",
       }),
       env,
+      ctx,
     );
 
     expect(response.status).toBe(405);
@@ -52,6 +63,7 @@ describe("worker entrypoint", () => {
         body: "{}",
       }),
       env,
+      ctx,
     );
 
     expect(response.status).toBe(401);
@@ -68,6 +80,7 @@ describe("worker entrypoint", () => {
         }),
       }),
       env,
+      ctx,
     );
 
     expect(response.status).toBe(200);
@@ -112,6 +125,7 @@ describe("worker entrypoint", () => {
           }),
         }),
         env,
+        ctx,
       );
 
       expect(response.status).toBe(200);
