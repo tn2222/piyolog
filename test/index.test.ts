@@ -78,6 +78,35 @@ describe("worker entrypoint", () => {
     });
   });
 
+  it("routes custom action capture requests to the repository", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/api/custom-action-captures?token=secret-token", {
+        method: "POST",
+        body: JSON.stringify({
+          baby: {
+            nickname: "赤ちゃん",
+            sex: "Female",
+            dateOfBirth: { year: 2026, month: 5, day: 6 },
+          },
+          days: [
+            {
+              date: { year: 2026, month: 6, day: 1 },
+              journal: "今日はよく寝た",
+            },
+          ],
+        }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, diaries: 1 });
+    expect(connect).toHaveBeenCalledWith({
+      url: "mysql://example",
+      fullResult: true,
+    });
+  });
+
   it("routes Slack slash commands to the assistant", async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {

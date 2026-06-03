@@ -4,6 +4,7 @@ import type {
   CompareMetricInput,
   CompareMetricResult,
   InsertResult,
+  PiyologDiaryInput,
   PiyologEventInput,
   PiyologRepositoryInterface,
   SummarizePeriodInput,
@@ -50,6 +51,42 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
     return {
       id: parseInsertId(result.lastInsertId),
     };
+  }
+
+  async upsertDiaries(diaries: PiyologDiaryInput[]): Promise<void> {
+    if (diaries.length === 0) {
+      return;
+    }
+
+    const valuesSql = diaries.map(() => "(?, ?, ?, ?, ?, CAST(? AS JSON))");
+    const params = diaries.flatMap((diary) => [
+      diary.babyNickname,
+      diary.babyDateOfBirth,
+      diary.babySex,
+      diary.entryDate,
+      diary.journal,
+      JSON.stringify(diary.rawDay),
+    ]);
+
+    await this.connection.execute(
+      `
+INSERT INTO piyolog_diaries (
+  baby_nickname,
+  baby_date_of_birth,
+  baby_sex,
+  entry_date,
+  journal,
+  raw_day
+)
+VALUES ${valuesSql.join(", ")}
+ON DUPLICATE KEY UPDATE
+  baby_sex = VALUES(baby_sex),
+  journal = VALUES(journal),
+  raw_day = VALUES(raw_day),
+  updated_at = CURRENT_TIMESTAMP
+      `.trim(),
+      params,
+    );
   }
 
   async insertEvents(rawTextExportId: number, events: PiyologEventInput[]): Promise<void> {

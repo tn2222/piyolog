@@ -1,7 +1,7 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { HttpLlmGatewayClient } from "./gateway/llmGatewayClient";
 import { handleSlackCommandRequest } from "./gateway/slackController";
-import { handleTextRecordsRequest } from "./handler";
+import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { createTiDBPiyologRepository } from "./repository";
 import type { Env } from "./types";
 
@@ -23,6 +23,12 @@ export default {
             }),
           }),
       });
+    }
+
+    if (url.pathname === "/api/custom-action-captures") {
+      return handleCustomActionCaptureRequest(request, env, () =>
+        createTiDBPiyologRepository(env.DATABASE_URL),
+      );
     }
 
     if (url.pathname !== "/api/text-records") {
