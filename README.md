@@ -81,6 +81,30 @@ CREATE TABLE IF NOT EXISTS raw_piyolog_text_exports (
 
 このSQLは [migrations/002_create_raw_piyolog_text_exports.sql](migrations/002_create_raw_piyolog_text_exports.sql) と同じ内容です。
 
+ぴよログの育児日記を保存するため、次のテーブルを作成します。
+
+```sql
+CREATE TABLE IF NOT EXISTS piyolog_diaries (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  baby_nickname VARCHAR(255),
+  baby_date_of_birth DATE,
+  baby_sex VARCHAR(32),
+  entry_date DATE NOT NULL,
+  journal MEDIUMTEXT NOT NULL,
+  raw_day JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_piyolog_diaries_baby_date (
+    baby_nickname,
+    baby_date_of_birth,
+    entry_date
+  ),
+  INDEX idx_piyolog_diaries_entry_date (entry_date)
+);
+```
+
+このSQLは [migrations/003_create_piyolog_diaries.sql](migrations/003_create_piyolog_diaries.sql) と同じ内容です。
+
 ## ローカル開発
 
 依存関係をインストールします。
@@ -170,6 +194,69 @@ https://<deployed-worker-url>/api/text-records?token=<INGEST_TOKEN>
 ```
 
 テキスト内の `HH:MM` で始まる行は、基本的にすべて `piyolog_events` に保存します。`event_type` はテキスト上の和名ラベルに統一します。
+
+## ぴよログ カスタムアクション
+
+育児日記は、ぴよログのカスタムアクションから Worker に送信します。テキストエクスポート経由ではなく、日付単位の `journal` を `piyolog_diaries` に保存します。
+
+```text
+ぴよログ カスタムアクション
+  -> POST /api/custom-action-captures?token=<INGEST_TOKEN>
+  -> TiDB Cloud Serverless
+  -> piyolog_diaries
+```
+
+Worker のカスタムアクション取り込みエンドポイントは次です。
+
+```text
+https://<deployed-worker-url>/api/custom-action-captures?token=<INGEST_TOKEN>
+```
+
+カスタムアクションから送られるJSONでは、`days[].journal` を育児日記本文として扱います。対象日は同じ要素の `days[].date` です。
+
+```json
+{
+  "baby": {
+    "nickname": "赤ちゃん",
+    "sex": "Female",
+    "dateOfBirth": { "year": 2026, "month": 5, "day": 6 }
+  },
+  "days": [
+    {
+      "date": { "year": 2026, "month": 6, "day": 1 },
+      "events": [],
+      "journal": "育児日記本文"
+    }
+  ]
+}
+```
+
+保存時は、同じ `baby_nickname`, `baby_date_of_birth`, `entry_date` の日記を置き換えます。`journal` が空文字で送られた場合も空文字として更新し、ぴよログ側で日記を消した状態をDBへ反映します。
+
+手動で疎通確認する場合は、次のようにリクエストを送ります。
+
+```sh
+curl -i \
+  -X POST \
+  -H "content-type: application/json" \
+  -d '{"baby":{"nickname":"赤ちゃん","sex":"Female","dateOfBirth":{"year":2026,"month":5,"day":6}},"days":[{"date":{"year":2026,"month":6,"day":1},"journal":"debug diary"}]}' \
+  "https://<deployed-worker-url>/api/custom-action-captures?token=<INGEST_TOKEN>"
+```
+
+成功時のレスポンス例です。
+
+```json
+{"ok":true,"diaries":1}
+```
+
+DBに保存された日記は次のSQLで確認できます。
+
+```sql
+SELECT *
+FROM piyolog_diaries
+ORDER BY id DESC
+LIMIT 5;
+```
 
 ## Macのミルク通知
 
