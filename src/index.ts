@@ -1,6 +1,7 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { HttpLlmGatewayClient } from "./gateway/llmGatewayClient";
 import { handleSlackCommandRequest } from "./gateway/slackController";
+import { createTiDBSummaryPeriodQueryService } from "./gateway/summaryPeriodQueryService";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { createTiDBPiyologRepository } from "./repository";
 import type { Env } from "./types";
@@ -22,6 +23,7 @@ export default {
             text,
             timezone: "Asia/Tokyo",
             repository: createTiDBPiyologRepository(env.DATABASE_URL),
+            summaryPeriodQueryService: createTiDBSummaryPeriodQueryService(env.DATABASE_URL),
             llmGateway: new HttpLlmGatewayClient({
               baseUrl: env.PERSONAL_LLM_GATEWAY_URL,
               token: env.PERSONAL_LLM_GATEWAY_TOKEN,

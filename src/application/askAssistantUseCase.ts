@@ -4,13 +4,17 @@ import {
   type BabyLogToolCall,
 } from "../domain/tools";
 import type { LlmGatewayInterface } from "../gateway/llmGatewayClient";
-import type { PiyologRepositoryInterface } from "../types";
+import type {
+  PiyologRepositoryInterface,
+  SummaryPeriodQueryServiceInterface,
+} from "../types";
 
 export type AskAssistantInput = {
   text: string;
   timezone: string;
   now?: Date;
   repository: PiyologRepositoryInterface;
+  summaryPeriodQueryService: SummaryPeriodQueryServiceInterface;
   llmGateway: LlmGatewayInterface;
 };
 
@@ -25,7 +29,8 @@ export type AskAssistantResult =
     };
 
 const answerInstructions =
-  "医療診断は避け、記録に基づく家庭内の振り返りとして回答する。";
+  "医療診断は避け、記録に基づく家庭内の振り返りとして回答する。" +
+  "育児日記は日付単位の補足観察として扱い、時刻付きイベント記録と区別して参照する。";
 
 export async function askAssistant(input: AskAssistantInput): Promise<AskAssistantResult> {
   let selectedTool: unknown;
@@ -62,7 +67,11 @@ export async function askAssistant(input: AskAssistantInput): Promise<AskAssista
   }
 
   try {
-    const toolResult = await executeToolCall(toolCall, input.repository);
+    const toolResult = await executeToolCall(
+      toolCall,
+      input.repository,
+      input.summaryPeriodQueryService,
+    );
     const answer = await input.llmGateway.generateAnswer({
       app: "piyolog",
       task: "answer_generation",
@@ -93,12 +102,13 @@ export async function askAssistant(input: AskAssistantInput): Promise<AskAssista
 async function executeToolCall(
   toolCall: BabyLogToolCall,
   repository: PiyologRepositoryInterface,
+  summaryPeriodQueryService: SummaryPeriodQueryServiceInterface,
 ): Promise<unknown> {
   switch (toolCall.toolName) {
     case "compare_metric":
       return repository.compareMetric(toolCall.arguments);
     case "summarize_period":
-      return repository.summarizePeriod(toolCall.arguments);
+      return summaryPeriodQueryService.summarizePeriod(toolCall.arguments);
   }
 }
 
