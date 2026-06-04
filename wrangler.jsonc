@@ -5,5 +5,32 @@
   "compatibility_date": "2026-05-21",
   "observability": {
     "enabled": true
-  }
+  },
+  "secrets_store_secrets": [
+    {
+      "binding": "INGEST_TOKEN",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_INGEST_TOKEN"
+    },
+    {
+      "binding": "DATABASE_URL",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_DATABASE_URL"
+    },
+    {
+      "binding": "SLACK_COMMAND_TOKEN",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_SLACK_COMMAND_TOKEN"
+    },
+    {
+      "binding": "PERSONAL_LLM_GATEWAY_URL",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_PERSONAL_LLM_GATEWAY_URL"
+    },
+    {
+      "binding": "PERSONAL_LLM_GATEWAY_TOKEN",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_PERSONAL_LLM_GATEWAY_TOKEN"
+    }
+  ]
 }

@@ -6,7 +6,21 @@ import type {
 } from "./domain/tools";
 import type { DateRange } from "./domain/periods";
 
+export type SecretValue = string | SecretsStoreSecretBinding;
+
+export type SecretsStoreSecretBinding = {
+  get(): Promise<string>;
+};
+
 export type Env = {
+  INGEST_TOKEN: SecretValue;
+  DATABASE_URL: SecretValue;
+  SLACK_COMMAND_TOKEN: SecretValue;
+  PERSONAL_LLM_GATEWAY_URL: SecretValue;
+  PERSONAL_LLM_GATEWAY_TOKEN: SecretValue;
+};
+
+export type ResolvedEnv = {
   INGEST_TOKEN: string;
   DATABASE_URL: string;
   SLACK_COMMAND_TOKEN: string;
