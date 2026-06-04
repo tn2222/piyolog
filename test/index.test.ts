@@ -110,6 +110,7 @@ describe("worker entrypoint", () => {
         }),
       }),
       env,
+      ctx,
     );
 
     expect(response.status).toBe(200);
