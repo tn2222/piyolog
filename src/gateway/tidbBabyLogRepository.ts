@@ -54,6 +54,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
   }
 
   async upsertDiaries(diaries: PiyologDiaryInput[]): Promise<void> {
+    // TODO: Split diary writes into a diary aggregate repository in a later refactor.
     if (diaries.length === 0) {
       return;
     }
