@@ -207,7 +207,7 @@ ORDER BY occurred_at
     return {
       range: input.range,
       granularity: input.granularity,
-      rows: parseRows((await result).rows),
+      days: groupEventsByDate(parseRows((await result).rows)),
     };
   }
 }
@@ -238,6 +238,32 @@ function metricSqlDefinition(metric: CompareMetricInput["metric"]): {
 
 function parseRows(rows: unknown[] | null | undefined): Record<string, unknown>[] {
   return Array.isArray(rows) ? rows.filter(isRecord) : [];
+}
+
+function groupEventsByDate(events: Record<string, unknown>[]): SummarizePeriodResult["days"] {
+  const daysByDate = new Map<string, SummarizePeriodResult["days"][number]>();
+
+  for (const event of events) {
+    const eventDate = event.event_date;
+    if (typeof eventDate !== "string") {
+      continue;
+    }
+
+    const date = eventDate.slice(0, 10);
+    const existingDay = daysByDate.get(date);
+    if (existingDay !== undefined) {
+      existingDay.events.push(event);
+      continue;
+    }
+
+    daysByDate.set(date, {
+      date,
+      events: [event],
+      journal: null,
+    });
+  }
+
+  return [...daysByDate.values()];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

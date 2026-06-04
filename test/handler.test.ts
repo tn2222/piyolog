@@ -45,7 +45,7 @@ class MemoryRepository implements PiyologRepositoryInterface {
     return {
       range: input.range,
       granularity: input.granularity,
-      rows: [],
+      days: [],
     };
   }
 }

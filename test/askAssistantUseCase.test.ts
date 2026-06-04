@@ -46,7 +46,13 @@ class FakeRepository implements PiyologRepositoryInterface {
     return {
       range: input.range,
       granularity: input.granularity,
-      rows: [{ event_date: "2026-05-31", milk_amount: 650 }],
+      days: [
+        {
+          date: "2026-05-31",
+          events: [{ event_date: "2026-05-31", milk_amount: 650 }],
+          journal: null,
+        },
+      ],
     };
   }
 }

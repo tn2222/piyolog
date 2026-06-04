@@ -71,10 +71,20 @@ export type SummarizePeriodInput = {
   includeMetrics: MetricName[];
 };
 
+export type SummaryPeriodDay = {
+  date: string;
+  events: Record<string, unknown>[];
+  journal: string | null;
+};
+
 export type SummarizePeriodResult = {
   range: DateRange;
   granularity: SummaryGranularityName;
-  rows: Record<string, unknown>[];
+  days: SummaryPeriodDay[];
+};
+
+export type SummaryPeriodQueryServiceInterface = {
+  summarizePeriod(input: SummarizePeriodInput): Promise<SummarizePeriodResult>;
 };
 
 export type PiyologRepositoryInterface = {
