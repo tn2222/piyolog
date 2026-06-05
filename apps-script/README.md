@@ -2,6 +2,16 @@
 
 このスクリプトは、Google Drive の指定フォルダに置かれた最新のぴよログテキストエクスポートを Cloudflare Worker に送信します。
 
+通常運用では、ぴよログのテキストエクスポートを Google Drive にアップロードし、Apps Script が5分ごとに未処理ファイルを Worker に送信します。
+
+```text
+ぴよログ テキストエクスポート
+  -> Google Drive フォルダ
+  -> Google Apps Script
+  -> POST /api/text-records?token=<INGEST_TOKEN>
+  -> TiDB Cloud Serverless
+```
+
 ## 使い方
 
 1. Google Apps Script プロジェクトを作成します。
@@ -16,6 +26,12 @@
 
 4. `syncPiyologTextExports` を手動実行し、Google Drive と外部URLアクセスの権限を承認します。
 5. Apps Script の「トリガー」から `syncPiyologTextExports` を時間主導型で5分ごとに実行するよう設定します。
+
+Worker のテキスト取り込みエンドポイントは次です。
+
+```text
+https://<deployed-worker-url>/api/text-records?token=<INGEST_TOKEN>
+```
 
 ## 処理済み判定
 
@@ -36,3 +52,5 @@ Apps Script は、最後に送信した最新ファイルを `LAST_PROCESSED_FIL
   "text": "ぴよログのテキストエクスポート本文"
 }
 ```
+
+テキスト内の `HH:MM` で始まる行は、基本的にすべて `piyolog_events` に保存します。`event_type` はテキスト上の和名ラベルに統一します。
