@@ -1,4 +1,4 @@
-import type { Env, PiyologDiaryInput, PiyologRepositoryFactory } from "./types";
+import type { PiyologDiaryInput, PiyologRepositoryFactory, ResolvedEnv } from "./types";
 import { parsePiyologTextEventDates, parsePiyologTextEvents } from "./piyologText";
 
 type ErrorCode =
@@ -33,7 +33,7 @@ function summarizeError(error: unknown): ErrorSummary {
 
 export async function handleTextRecordsRequest(
   request: Request,
-  env: Env,
+  env: ResolvedEnv,
   createRepository: PiyologRepositoryFactory,
 ): Promise<Response> {
   if (request.method !== "POST") {
@@ -84,7 +84,7 @@ export async function handleTextRecordsRequest(
 
 export async function handleCustomActionCaptureRequest(
   request: Request,
-  env: Env,
+  env: ResolvedEnv,
   createRepository: PiyologRepositoryFactory,
 ): Promise<Response> {
   if (request.method !== "POST") {

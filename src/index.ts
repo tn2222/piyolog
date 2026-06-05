@@ -4,6 +4,7 @@ import { handleSlackCommandRequest } from "./gateway/slackController";
 import { createTiDBSummaryPeriodQueryService } from "./gateway/summaryPeriodQueryService";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { createTiDBPiyologRepository } from "./repository";
+import { resolveSecrets } from "./secrets";
 import type { Env } from "./types";
 
 export default {
@@ -14,31 +15,11 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/slack/commands") {
-      return handleSlackCommandRequest(request, {
-        slackCommandToken: env.SLACK_COMMAND_TOKEN,
-        waitUntil: (task) => ctx.waitUntil(task),
-        askAssistant: (text) =>
-          askAssistant({
-            text,
-            timezone: "Asia/Tokyo",
-            repository: createTiDBPiyologRepository(env.DATABASE_URL),
-            summaryPeriodQueryService: createTiDBSummaryPeriodQueryService(env.DATABASE_URL),
-            llmGateway: new HttpLlmGatewayClient({
-              baseUrl: env.PERSONAL_LLM_GATEWAY_URL,
-              token: env.PERSONAL_LLM_GATEWAY_TOKEN,
-            }),
-          }),
-      });
-    }
-
-    if (url.pathname === "/api/custom-action-captures") {
-      return handleCustomActionCaptureRequest(request, env, () =>
-        createTiDBPiyologRepository(env.DATABASE_URL),
-      );
-    }
-
-    if (url.pathname !== "/api/text-records") {
+    if (
+      url.pathname !== "/api/slack/commands" &&
+      url.pathname !== "/api/custom-action-captures" &&
+      url.pathname !== "/api/text-records"
+    ) {
       return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
         status: 404,
         headers: {
@@ -47,8 +28,36 @@ export default {
       });
     }
 
-    return handleTextRecordsRequest(request, env, () =>
-      createTiDBPiyologRepository(env.DATABASE_URL),
+    const resolvedEnv = await resolveSecrets(env);
+
+    if (url.pathname === "/api/slack/commands") {
+      return handleSlackCommandRequest(request, {
+        slackCommandToken: resolvedEnv.SLACK_COMMAND_TOKEN,
+        waitUntil: (task) => ctx.waitUntil(task),
+        askAssistant: (text) =>
+          askAssistant({
+            text,
+            timezone: "Asia/Tokyo",
+            repository: createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
+            summaryPeriodQueryService: createTiDBSummaryPeriodQueryService(
+              resolvedEnv.DATABASE_URL,
+            ),
+            llmGateway: new HttpLlmGatewayClient({
+              baseUrl: resolvedEnv.PERSONAL_LLM_GATEWAY_URL,
+              token: resolvedEnv.PERSONAL_LLM_GATEWAY_TOKEN,
+            }),
+          }),
+      });
+    }
+
+    if (url.pathname === "/api/custom-action-captures") {
+      return handleCustomActionCaptureRequest(request, resolvedEnv, () =>
+        createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
+      );
+    }
+
+    return handleTextRecordsRequest(request, resolvedEnv, () =>
+      createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
     );
   },
 };
