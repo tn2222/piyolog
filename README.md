@@ -45,7 +45,8 @@ npm run notify:formula -- --dry-run
 - [Macのミルク時間通知](scripts/README.md)
 - [AI Agent Slackインターフェース](docs/ai-agent/slack.md)
 - [Grafana Cloud](docs/grafana.md)
-- [セキュリティとデプロイ](docs/security.md)
+- [セキュリティ](docs/security.md)
+- [デプロイ](docs/deployment.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decision Records](docs/decisions/)
 
