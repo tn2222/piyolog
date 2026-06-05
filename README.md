@@ -15,6 +15,8 @@
 - Grafana Cloud
 - Google Apps Script
 - macOS `launchd`
+- GitHub Actions
+- Cloudflare Secrets Store
 
 ## よく使うコマンド
 
@@ -43,7 +45,7 @@ npm run notify:formula -- --dry-run
 - [Macのミルク時間通知](scripts/README.md)
 - [AI Agent Slackインターフェース](docs/ai-agent/slack.md)
 - [Grafana Cloud](docs/grafana.md)
-- [セキュリティ](docs/security.md)
+- [セキュリティとデプロイ](docs/security.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decision Records](docs/decisions/)
 

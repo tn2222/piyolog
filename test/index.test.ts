@@ -91,6 +91,32 @@ describe("worker entrypoint", () => {
     });
   });
 
+  it("resolves Secrets Store bindings before handling text record requests", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/api/text-records?token=store-secret-token", {
+        method: "POST",
+        body: JSON.stringify({
+          text: "2026/5/22(金)\n赤ちゃん (0か月16日)\n01:00   ミルク 40ml",
+        }),
+      }),
+      {
+        INGEST_TOKEN: secretBinding("store-secret-token"),
+        DATABASE_URL: secretBinding("mysql://store-example"),
+        SLACK_COMMAND_TOKEN: secretBinding("store-slack-token"),
+        PERSONAL_LLM_GATEWAY_URL: secretBinding("https://llm.store.example.com"),
+        PERSONAL_LLM_GATEWAY_TOKEN: secretBinding("store-gateway-token"),
+      },
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, id: 123, events: 1 });
+    expect(connect).toHaveBeenCalledWith({
+      url: "mysql://store-example",
+      fullResult: true,
+    });
+  });
+
   it("routes custom action capture requests to the repository", async () => {
     const response = await worker.fetch(
       new Request("https://example.com/api/custom-action-captures?token=secret-token", {
@@ -173,3 +199,11 @@ describe("worker entrypoint", () => {
     }
   });
 });
+
+function secretBinding(value: string) {
+  return {
+    async get() {
+      return value;
+    },
+  };
+}
