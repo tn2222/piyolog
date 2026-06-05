@@ -4,6 +4,7 @@ import type { LlmGatewayInterface } from "../src/gateway/llmGatewayClient";
 import type {
   CompareMetricInput,
   PiyologRepositoryInterface,
+  SummaryPeriodQueryServiceInterface,
   SummarizePeriodInput,
   TextExportInput,
 } from "../src/types";
@@ -11,6 +12,7 @@ import type {
 class FakeRepository implements PiyologRepositoryInterface {
   public comparedMetrics: CompareMetricInput[] = [];
   public summarizedPeriods: SummarizePeriodInput[] = [];
+  public shouldRejectSummarizePeriod = false;
 
   async insertTextExport(_input: TextExportInput) {
     return { id: null };
@@ -42,6 +44,9 @@ class FakeRepository implements PiyologRepositoryInterface {
   }
 
   async summarizePeriod(input: SummarizePeriodInput) {
+    if (this.shouldRejectSummarizePeriod) {
+      throw new Error("repository summarizePeriod should not be called");
+    }
     this.summarizedPeriods.push(input);
     return {
       range: input.range,
@@ -51,6 +56,25 @@ class FakeRepository implements PiyologRepositoryInterface {
           date: "2026-05-31",
           events: [{ event_date: "2026-05-31", milk_amount: 650 }],
           journal: null,
+        },
+      ],
+    };
+  }
+}
+
+class FakeSummaryPeriodQueryService implements SummaryPeriodQueryServiceInterface {
+  public summarizedPeriods: SummarizePeriodInput[] = [];
+
+  async summarizePeriod(input: SummarizePeriodInput) {
+    this.summarizedPeriods.push(input);
+    return {
+      range: input.range,
+      granularity: input.granularity,
+      days: [
+        {
+          date: "2026-06-01",
+          events: [{ event_date: "2026-06-01", event_type: "ミルク" }],
+          journal: "今日はよく寝た",
         },
       ],
     };
@@ -93,6 +117,7 @@ describe("askAssistant", () => {
       timezone: "Asia/Tokyo",
       now: new Date("2026-06-03T08:15:30+09:00"),
       repository,
+      summaryPeriodQueryService: new FakeSummaryPeriodQueryService(),
       llmGateway,
     });
 
@@ -140,7 +165,70 @@ describe("askAssistant", () => {
             },
           },
         ],
-        instructions: "医療診断は避け、記録に基づく家庭内の振り返りとして回答する。",
+        instructions:
+          "医療診断は避け、記録に基づく家庭内の振り返りとして回答する。育児日記は日付単位の補足観察として扱い、時刻付きイベント記録と区別して参照する。",
+      },
+    ]);
+  });
+
+  it("executes summarize_period with the summary period query service", async () => {
+    const repository = new FakeRepository();
+    repository.shouldRejectSummarizePeriod = true;
+    const summaryPeriodQueryService = new FakeSummaryPeriodQueryService();
+    const llmGateway = new FakeLlmGateway({
+      toolName: "summarize_period",
+      arguments: {
+        range: { from: "2026-06-01", to: "2026-06-02" },
+        granularity: "day",
+        includeMetrics: ["milk_amount"],
+      },
+    });
+
+    const result = await askAssistant({
+      text: "昨日のまとめ",
+      timezone: "Asia/Tokyo",
+      now: new Date("2026-06-03T08:15:30+09:00"),
+      repository,
+      summaryPeriodQueryService,
+      llmGateway,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      text: "今週は先週よりミルク量が増えています。",
+    });
+    expect(repository.summarizedPeriods).toEqual([]);
+    expect(summaryPeriodQueryService.summarizedPeriods).toEqual([
+      {
+        range: { from: "2026-06-01", to: "2026-06-02" },
+        granularity: "day",
+        includeMetrics: ["milk_amount"],
+      },
+    ]);
+    expect(llmGateway.generatedAnswers).toEqual([
+      {
+        app: "piyolog",
+        task: "answer_generation",
+        modelPolicy: "balanced",
+        userText: "昨日のまとめ",
+        toolResults: [
+          {
+            toolName: "summarize_period",
+            result: {
+              range: { from: "2026-06-01", to: "2026-06-02" },
+              granularity: "day",
+              days: [
+                {
+                  date: "2026-06-01",
+                  events: [{ event_date: "2026-06-01", event_type: "ミルク" }],
+                  journal: "今日はよく寝た",
+                },
+              ],
+            },
+          },
+        ],
+        instructions:
+          "医療診断は避け、記録に基づく家庭内の振り返りとして回答する。育児日記は日付単位の補足観察として扱い、時刻付きイベント記録と区別して参照する。",
       },
     ]);
   });
@@ -150,6 +238,7 @@ describe("askAssistant", () => {
       text: "先週と比べてミルク量増えた？",
       timezone: "Asia/Tokyo",
       repository: new FakeRepository(),
+      summaryPeriodQueryService: new FakeSummaryPeriodQueryService(),
       llmGateway: new FakeLlmGateway({
         toolName: "compare_metric",
         arguments: {
@@ -178,6 +267,7 @@ describe("askAssistant", () => {
       text: "昨日のまとめ",
       timezone: "Asia/Tokyo",
       repository: new FakeRepository(),
+      summaryPeriodQueryService: new FakeSummaryPeriodQueryService(),
       llmGateway: failingGateway,
     });
 
