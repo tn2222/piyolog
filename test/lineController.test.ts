@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleLineWebhookRequest } from "../src/gateway/lineController";
+import { handleLineWebhookRequest } from "../src/controller/lineController";
 
 describe("handleLineWebhookRequest", () => {
   it("rejects non-POST requests", async () => {
@@ -61,8 +61,7 @@ describe("handleLineWebhookRequest", () => {
 
   it("accepts empty events for LINE Console verification", async () => {
     const body = JSON.stringify({ destination: "Uxxxxxxxx", events: [] });
-    const askAssistant = vi.fn();
-    const fetchMock = vi.fn();
+    const handleTextMessage = vi.fn();
 
     const response = await handleLineWebhookRequest(
       new Request("https://example.com/api/line/webhook", {
@@ -70,16 +69,15 @@ describe("handleLineWebhookRequest", () => {
         headers: { "x-line-signature": await signBody(body, "line-secret") },
         body,
       }),
-      dependencies({ askAssistant, fetch: fetchMock }),
+      dependencies({ handleTextMessage }),
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(askAssistant).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(handleTextMessage).not.toHaveBeenCalled();
   });
 
-  it("passes text message events to the assistant and replies to LINE", async () => {
+  it("passes text message events to the injected handler", async () => {
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -94,11 +92,7 @@ describe("handleLineWebhookRequest", () => {
         },
       ],
     });
-    const askAssistant = vi.fn(async () => ({
-      ok: true,
-      text: "昨日のミルク量は合計420mlです。",
-    }));
-    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    const handleTextMessage = vi.fn();
 
     const response = await handleLineWebhookRequest(
       new Request("https://example.com/api/line/webhook", {
@@ -106,26 +100,18 @@ describe("handleLineWebhookRequest", () => {
         headers: { "x-line-signature": await signBody(body, "line-secret") },
         body,
       }),
-      dependencies({ askAssistant, fetch: fetchMock }),
+      dependencies({ handleTextMessage }),
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(askAssistant).toHaveBeenCalledWith("昨日のミルク量をまとめて");
-    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/message/reply", {
-      method: "POST",
-      headers: {
-        authorization: "Bearer line-access-token",
-        "content-type": "application/json; charset=utf-8",
-      },
-      body: JSON.stringify({
-        replyToken: "reply-token",
-        messages: [{ type: "text", text: "昨日のミルク量は合計420mlです。" }],
-      }),
+    expect(handleTextMessage).toHaveBeenCalledWith({
+      replyToken: "reply-token",
+      text: "昨日のミルク量をまとめて",
     });
   });
 
-  it("logs event handling failures and still acknowledges the webhook", async () => {
+  it("logs text message handler failures and still acknowledges the webhook", async () => {
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -150,8 +136,8 @@ describe("handleLineWebhookRequest", () => {
           body,
         }),
         dependencies({
-          askAssistant: async () => {
-            throw new Error("assistant unavailable");
+          handleTextMessage: async () => {
+            throw new Error("handler unavailable");
           },
         }),
       );
@@ -160,7 +146,7 @@ describe("handleLineWebhookRequest", () => {
       expect(await response.json()).toEqual({ ok: true });
       expect(consoleError).toHaveBeenCalledWith("Failed to handle LINE text message", {
         name: "Error",
-        message: "assistant unavailable",
+        message: "handler unavailable",
       });
     } finally {
       consoleError.mockRestore();
@@ -178,8 +164,7 @@ describe("handleLineWebhookRequest", () => {
         },
       ],
     });
-    const askAssistant = vi.fn();
-    const fetchMock = vi.fn();
+    const handleTextMessage = vi.fn();
 
     const response = await handleLineWebhookRequest(
       new Request("https://example.com/api/line/webhook", {
@@ -187,15 +172,13 @@ describe("handleLineWebhookRequest", () => {
         headers: { "x-line-signature": await signBody(body, "line-secret") },
         body,
       }),
-      dependencies({ askAssistant, fetch: fetchMock }),
+      dependencies({ handleTextMessage }),
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(askAssistant).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(handleTextMessage).not.toHaveBeenCalled();
   });
-
 });
 
 function dependencies(
@@ -203,9 +186,7 @@ function dependencies(
 ): Parameters<typeof handleLineWebhookRequest>[1] {
   return {
     lineChannelSecret: "line-secret",
-    lineChannelAccessToken: "line-access-token",
-    askAssistant: async () => ({ ok: true, text: "ok" }),
-    fetch: async () => new Response("{}", { status: 200 }),
+    handleTextMessage: () => undefined,
     ...overrides,
   };
 }

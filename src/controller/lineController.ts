@@ -1,10 +1,11 @@
-import type { AskAssistantResult } from "../application/askAssistantUseCase";
+export type LineTextMessage = {
+  replyToken: string;
+  text: string;
+};
 
 type LineWebhookDependencies = {
   lineChannelSecret: string;
-  lineChannelAccessToken: string;
-  askAssistant(text: string): Promise<AskAssistantResult>;
-  fetch?: typeof fetch;
+  handleTextMessage(message: LineTextMessage): void | Promise<void>;
 };
 
 type LineWebhookPayload = {
@@ -19,8 +20,6 @@ type LineTextMessageEvent = {
     text: string;
   };
 };
-
-const lineReplyEndpoint = "https://api.line.me/v2/bot/message/reply";
 
 export async function handleLineWebhookRequest(
   request: Request,
@@ -49,40 +48,21 @@ export async function handleLineWebhookRequest(
 
   const events = Array.isArray(payload.events) ? payload.events : [];
   for (const event of events) {
-    if (isLineTextMessageEvent(event)) {
-      try {
-        const result = await dependencies.askAssistant(event.message.text);
-        await replyText(event.replyToken, result.text, dependencies);
-      } catch (error) {
-        console.error("Failed to handle LINE text message", summarizeError(error));
-      }
+    if (!isLineTextMessageEvent(event)) {
+      continue;
+    }
+
+    try {
+      await dependencies.handleTextMessage({
+        replyToken: event.replyToken,
+        text: event.message.text,
+      });
+    } catch (error) {
+      console.error("Failed to handle LINE text message", summarizeError(error));
     }
   }
 
   return jsonResponse({ ok: true }, 200);
-}
-
-async function replyText(
-  replyToken: string,
-  text: string,
-  dependencies: LineWebhookDependencies,
-): Promise<void> {
-  const post = dependencies.fetch ?? fetch;
-  const response = await post(lineReplyEndpoint, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${dependencies.lineChannelAccessToken}`,
-      "content-type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify({
-      replyToken,
-      messages: [{ type: "text", text }],
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`LINE reply API failed with status ${response.status}`);
-  }
 }
 
 async function verifyLineSignature(
