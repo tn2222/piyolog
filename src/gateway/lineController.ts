@@ -1,11 +1,10 @@
-export type LineTextMessage = {
-  replyToken: string;
-  text: string;
-};
+import type { AskAssistantResult } from "../application/askAssistantUseCase";
 
 type LineWebhookDependencies = {
   lineChannelSecret: string;
-  handleTextMessage(message: LineTextMessage): void | Promise<void>;
+  lineChannelAccessToken: string;
+  askAssistant(text: string): Promise<AskAssistantResult>;
+  fetch?: typeof fetch;
 };
 
 type LineWebhookPayload = {
@@ -20,6 +19,8 @@ type LineTextMessageEvent = {
     text: string;
   };
 };
+
+const lineReplyEndpoint = "https://api.line.me/v2/bot/message/reply";
 
 export async function handleLineWebhookRequest(
   request: Request,
@@ -49,14 +50,39 @@ export async function handleLineWebhookRequest(
   const events = Array.isArray(payload.events) ? payload.events : [];
   for (const event of events) {
     if (isLineTextMessageEvent(event)) {
-      await dependencies.handleTextMessage({
-        replyToken: event.replyToken,
-        text: event.message.text,
-      });
+      try {
+        const result = await dependencies.askAssistant(event.message.text);
+        await replyText(event.replyToken, result.text, dependencies);
+      } catch (error) {
+        console.error("Failed to handle LINE text message", summarizeError(error));
+      }
     }
   }
 
   return jsonResponse({ ok: true }, 200);
+}
+
+async function replyText(
+  replyToken: string,
+  text: string,
+  dependencies: LineWebhookDependencies,
+): Promise<void> {
+  const post = dependencies.fetch ?? fetch;
+  const response = await post(lineReplyEndpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${dependencies.lineChannelAccessToken}`,
+      "content-type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({
+      replyToken,
+      messages: [{ type: "text", text }],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`LINE reply API failed with status ${response.status}`);
+  }
 }
 
 async function verifyLineSignature(
@@ -117,4 +143,11 @@ function jsonResponse(body: unknown, status: number): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function summarizeError(error: unknown): { name: string; message: string } {
+  return {
+    name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
