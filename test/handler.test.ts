@@ -56,6 +56,8 @@ const env = {
   SLACK_COMMAND_TOKEN: "slack-token",
   PERSONAL_LLM_GATEWAY_URL: "https://llm.example.com",
   PERSONAL_LLM_GATEWAY_TOKEN: "gateway-token",
+  LINE_CHANNEL_SECRET: "line-secret",
+  LINE_CHANNEL_ACCESS_TOKEN: "line-access-token",
 };
 
 describe("handleTextRecordsRequest", () => {

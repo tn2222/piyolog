@@ -10,6 +10,8 @@ describe("resolveSecrets", () => {
       SLACK_COMMAND_TOKEN: "local-slack-token",
       PERSONAL_LLM_GATEWAY_URL: "https://llm.local",
       PERSONAL_LLM_GATEWAY_TOKEN: "local-gateway-token",
+      LINE_CHANNEL_SECRET: "local-line-secret",
+      LINE_CHANNEL_ACCESS_TOKEN: "local-line-access-token",
     });
 
     expect(secrets).toEqual({
@@ -18,6 +20,8 @@ describe("resolveSecrets", () => {
       SLACK_COMMAND_TOKEN: "local-slack-token",
       PERSONAL_LLM_GATEWAY_URL: "https://llm.local",
       PERSONAL_LLM_GATEWAY_TOKEN: "local-gateway-token",
+      LINE_CHANNEL_SECRET: "local-line-secret",
+      LINE_CHANNEL_ACCESS_TOKEN: "local-line-access-token",
     });
   });
 
@@ -28,6 +32,8 @@ describe("resolveSecrets", () => {
       SLACK_COMMAND_TOKEN: secretBinding("store-slack-token"),
       PERSONAL_LLM_GATEWAY_URL: secretBinding("https://llm.store"),
       PERSONAL_LLM_GATEWAY_TOKEN: secretBinding("store-gateway-token"),
+      LINE_CHANNEL_SECRET: secretBinding("store-line-secret"),
+      LINE_CHANNEL_ACCESS_TOKEN: secretBinding("store-line-access-token"),
     } satisfies Env;
 
     await expect(resolveSecrets(env)).resolves.toEqual({
@@ -36,6 +42,8 @@ describe("resolveSecrets", () => {
       SLACK_COMMAND_TOKEN: "store-slack-token",
       PERSONAL_LLM_GATEWAY_URL: "https://llm.store",
       PERSONAL_LLM_GATEWAY_TOKEN: "store-gateway-token",
+      LINE_CHANNEL_SECRET: "store-line-secret",
+      LINE_CHANNEL_ACCESS_TOKEN: "store-line-access-token",
     });
   });
 });
