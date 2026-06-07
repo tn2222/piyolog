@@ -16,6 +16,8 @@ const env = {
   SLACK_COMMAND_TOKEN: "slack-token",
   PERSONAL_LLM_GATEWAY_URL: "https://llm.example.com",
   PERSONAL_LLM_GATEWAY_TOKEN: "gateway-token",
+  LINE_CHANNEL_SECRET: "line-secret",
+  LINE_CHANNEL_ACCESS_TOKEN: "line-access-token",
 };
 
 const ctx = {
@@ -105,6 +107,8 @@ describe("worker entrypoint", () => {
         SLACK_COMMAND_TOKEN: secretBinding("store-slack-token"),
         PERSONAL_LLM_GATEWAY_URL: secretBinding("https://llm.store.example.com"),
         PERSONAL_LLM_GATEWAY_TOKEN: secretBinding("store-gateway-token"),
+        LINE_CHANNEL_SECRET: secretBinding("store-line-secret"),
+        LINE_CHANNEL_ACCESS_TOKEN: secretBinding("store-line-access-token"),
       },
       ctx,
     );
@@ -198,6 +202,82 @@ describe("worker entrypoint", () => {
       vi.stubGlobal("fetch", originalFetch);
     }
   });
+
+  it("routes LINE webhooks to the assistant and replies to LINE", async () => {
+    const originalFetch = globalThis.fetch;
+    const body = JSON.stringify({
+      destination: "Uxxxxxxxx",
+      events: [
+        {
+          type: "message",
+          replyToken: "line-reply-token",
+          message: {
+            type: "text",
+            id: "message-id",
+            text: "昨日のミルク量をまとめて",
+          },
+        },
+      ],
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/v1/tool-selection")) {
+        return new Response(
+          JSON.stringify({
+            toolName: "compare_metric",
+            arguments: {
+              metric: "milk_amount",
+              currentRange: { from: "2026-06-06", to: "2026-06-07" },
+              previousRange: { from: "2026-06-05", to: "2026-06-06" },
+              aggregation: "sum",
+              groupBy: "none",
+            },
+          }),
+        );
+      }
+      if (url.endsWith("/v1/generate")) {
+        return new Response(JSON.stringify({ text: "昨日のミルク量は合計420mlです。" }));
+      }
+      return new Response("{}", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    execute.mockResolvedValue({ lastInsertId: null, rows: [] });
+
+    try {
+      const response = await worker.fetch(
+        new Request("https://example.com/api/line/webhook", {
+          method: "POST",
+          headers: { "x-line-signature": await signBody(body, "line-secret") },
+          body,
+        }),
+        env,
+        ctx,
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(connect).toHaveBeenCalledWith({
+        url: "mysql://example",
+        fullResult: true,
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.line.me/v2/bot/message/reply",
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer line-access-token",
+            "content-type": "application/json; charset=utf-8",
+          },
+          body: JSON.stringify({
+            replyToken: "line-reply-token",
+            messages: [{ type: "text", text: "昨日のミルク量は合計420mlです。" }],
+          }),
+        },
+      );
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
+  });
 });
 
 function secretBinding(value: string) {
@@ -206,4 +286,16 @@ function secretBinding(value: string) {
       return value;
     },
   };
+}
+
+async function signBody(body: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }

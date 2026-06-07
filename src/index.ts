@@ -1,8 +1,11 @@
 import { askAssistant } from "./application/askAssistantUseCase";
+import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
+import { handleLineWebhookRequest } from "./controller/lineController";
 import { HttpLlmGatewayClient } from "./gateway/llmGatewayClient";
 import { handleSlackCommandRequest } from "./gateway/slackController";
 import { createTiDBSummaryPeriodQueryService } from "./gateway/summaryPeriodQueryService";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
+import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
 import { createTiDBPiyologRepository } from "./repository";
 import { resolveSecrets } from "./secrets";
 import type { Env } from "./types";
@@ -17,6 +20,7 @@ export default {
 
     if (
       url.pathname !== "/api/slack/commands" &&
+      url.pathname !== "/api/line/webhook" &&
       url.pathname !== "/api/custom-action-captures" &&
       url.pathname !== "/api/text-records"
     ) {
@@ -45,6 +49,33 @@ export default {
             llmGateway: new HttpLlmGatewayClient({
               baseUrl: resolvedEnv.PERSONAL_LLM_GATEWAY_URL,
               token: resolvedEnv.PERSONAL_LLM_GATEWAY_TOKEN,
+            }),
+          }),
+      });
+    }
+
+    if (url.pathname === "/api/line/webhook") {
+      return handleLineWebhookRequest(request, {
+        lineChannelSecret: resolvedEnv.LINE_CHANNEL_SECRET,
+        handleTextMessage: ({ replyToken, text }) =>
+          handleLineTextMessage({
+            replyToken,
+            text,
+            askAssistant: (messageText) =>
+              askAssistant({
+                text: messageText,
+                timezone: "Asia/Tokyo",
+                repository: createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
+                summaryPeriodQueryService: createTiDBSummaryPeriodQueryService(
+                  resolvedEnv.DATABASE_URL,
+                ),
+                llmGateway: new HttpLlmGatewayClient({
+                  baseUrl: resolvedEnv.PERSONAL_LLM_GATEWAY_URL,
+                  token: resolvedEnv.PERSONAL_LLM_GATEWAY_TOKEN,
+                }),
+              }),
+            lineMessagingClient: new HttpLineMessagingClient({
+              channelAccessToken: resolvedEnv.LINE_CHANNEL_ACCESS_TOKEN,
             }),
           }),
       });

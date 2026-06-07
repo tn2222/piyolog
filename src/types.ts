@@ -18,6 +18,8 @@ export type Env = {
   SLACK_COMMAND_TOKEN: SecretValue;
   PERSONAL_LLM_GATEWAY_URL: SecretValue;
   PERSONAL_LLM_GATEWAY_TOKEN: SecretValue;
+  LINE_CHANNEL_SECRET: SecretValue;
+  LINE_CHANNEL_ACCESS_TOKEN: SecretValue;
 };
 
 export type ResolvedEnv = {
@@ -26,6 +28,8 @@ export type ResolvedEnv = {
   SLACK_COMMAND_TOKEN: string;
   PERSONAL_LLM_GATEWAY_URL: string;
   PERSONAL_LLM_GATEWAY_TOKEN: string;
+  LINE_CHANNEL_SECRET: string;
+  LINE_CHANNEL_ACCESS_TOKEN: string;
 };
 
 export type PiyologEventInput = {
