@@ -44,6 +44,7 @@ npm run notify:formula -- --dry-run
 - [Google Apps Script 設定手順](apps-script/README.md)
 - [Macのミルク時間通知](scripts/README.md)
 - [AI Agent Slackインターフェース](docs/ai-agent/slack.md)
+- [AI Agent LINEインターフェース](docs/ai-agent/line.md)
 - [Grafana Cloud](docs/grafana.md)
 - [セキュリティ](docs/security.md)
 - [デプロイ](docs/deployment.md)
@@ -56,6 +57,7 @@ npm run notify:formula -- --dry-run
 POST /api/text-records?token=<INGEST_TOKEN>
 POST /api/custom-action-captures?token=<INGEST_TOKEN>
 POST /api/slack/commands
+POST /api/line/webhook
 ```
 
 各エンドポイントのpayloadや疎通確認方法は、対応するドキュメントを参照してください。

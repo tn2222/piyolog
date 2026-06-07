@@ -18,6 +18,8 @@ Worker の実行時 secret は Cloudflare Secrets Store を source of truth と�
 - `PIYOLOG_SLACK_COMMAND_TOKEN` -> `SLACK_COMMAND_TOKEN`
 - `PIYOLOG_PERSONAL_LLM_GATEWAY_URL` -> `PERSONAL_LLM_GATEWAY_URL`
 - `PIYOLOG_PERSONAL_LLM_GATEWAY_TOKEN` -> `PERSONAL_LLM_GATEWAY_TOKEN`
+- `PIYOLOG_LINE_CHANNEL_SECRET` -> `LINE_CHANNEL_SECRET`
+- `PIYOLOG_LINE_CHANNEL_ACCESS_TOKEN` -> `LINE_CHANNEL_ACCESS_TOKEN`
 
 Worker のコードは Secrets Store binding を実行時に `get()` して値を取得します。binding の追加・削除・参照先変更はデプロイが必要ですが、Secrets Store 側の値更新は再デプロイせずに反映される想定です。値の更新直後に全リクエストへ同時反映されることは前提にしません。
 
