@@ -57,6 +57,7 @@ export default {
     if (url.pathname === "/api/line/webhook") {
       return handleLineWebhookRequest(request, {
         lineChannelSecret: resolvedEnv.LINE_CHANNEL_SECRET,
+        waitUntil: (task) => ctx.waitUntil(task),
         handleTextMessage: ({ replyToken, text }) =>
           handleLineTextMessage({
             replyToken,

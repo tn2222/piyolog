@@ -6,6 +6,7 @@ export type LineTextMessage = {
 type LineWebhookDependencies = {
   lineChannelSecret: string;
   handleTextMessage(message: LineTextMessage): void | Promise<void>;
+  waitUntil(task: Promise<void>): void;
 };
 
 type LineWebhookPayload = {
@@ -52,14 +53,16 @@ export async function handleLineWebhookRequest(
       continue;
     }
 
-    try {
-      await dependencies.handleTextMessage({
-        replyToken: event.replyToken,
-        text: event.message.text,
-      });
-    } catch (error) {
-      console.error("Failed to handle LINE text message", summarizeError(error));
-    }
+    dependencies.waitUntil(
+      Promise.resolve().then(() =>
+        dependencies.handleTextMessage({
+          replyToken: event.replyToken,
+          text: event.message.text,
+        }),
+      ).catch((error) => {
+        console.error("Failed to handle LINE text message", summarizeError(error));
+      }),
+    );
   }
 
   return jsonResponse({ ok: true }, 200);
