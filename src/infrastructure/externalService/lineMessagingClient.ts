@@ -13,7 +13,7 @@ export class HttpLineMessagingClient implements LineMessagingClientInterface {
 
   constructor(input: HttpLineMessagingClientInput) {
     this.channelAccessToken = input.channelAccessToken;
-    this.fetch = input.fetch ?? fetch;
+    this.fetch = input.fetch ?? ((request, init) => fetch(request, init));
   }
 
   async replyText(replyToken: string, text: string): Promise<void> {
