@@ -31,6 +31,16 @@
       "binding": "PERSONAL_LLM_GATEWAY_TOKEN",
       "store_id": "59f28da79e5048bd82aafd4aefd97b37",
       "secret_name": "PIYOLOG_PERSONAL_LLM_GATEWAY_TOKEN"
+    },
+    {
+      "binding": "LINE_CHANNEL_SECRET",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_LINE_CHANNEL_SECRET"
+    },
+    {
+      "binding": "LINE_CHANNEL_ACCESS_TOKEN",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_LINE_CHANNEL_ACCESS_TOKEN"
     }
   ]
 }
