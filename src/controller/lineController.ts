@@ -48,11 +48,17 @@ export async function handleLineWebhookRequest(
 
   const events = Array.isArray(payload.events) ? payload.events : [];
   for (const event of events) {
-    if (isLineTextMessageEvent(event)) {
+    if (!isLineTextMessageEvent(event)) {
+      continue;
+    }
+
+    try {
       await dependencies.handleTextMessage({
         replyToken: event.replyToken,
         text: event.message.text,
       });
+    } catch (error) {
+      console.error("Failed to handle LINE text message", summarizeError(error));
     }
   }
 
@@ -117,4 +123,11 @@ function jsonResponse(body: unknown, status: number): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function summarizeError(error: unknown): { name: string; message: string } {
+  return {
+    name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }

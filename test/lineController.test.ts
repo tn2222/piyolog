@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleLineWebhookRequest } from "../src/gateway/lineController";
+import { handleLineWebhookRequest } from "../src/controller/lineController";
 
 describe("handleLineWebhookRequest", () => {
   it("rejects non-POST requests", async () => {
@@ -77,7 +77,7 @@ describe("handleLineWebhookRequest", () => {
     expect(handleTextMessage).not.toHaveBeenCalled();
   });
 
-  it("extracts text message events", async () => {
+  it("passes text message events to the injected handler", async () => {
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -109,6 +109,48 @@ describe("handleLineWebhookRequest", () => {
       replyToken: "reply-token",
       text: "昨日のミルク量をまとめて",
     });
+  });
+
+  it("logs text message handler failures and still acknowledges the webhook", async () => {
+    const body = JSON.stringify({
+      destination: "Uxxxxxxxx",
+      events: [
+        {
+          type: "message",
+          replyToken: "reply-token",
+          message: {
+            type: "text",
+            id: "message-id",
+            text: "昨日のミルク量をまとめて",
+          },
+        },
+      ],
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      const response = await handleLineWebhookRequest(
+        new Request("https://example.com/api/line/webhook", {
+          method: "POST",
+          headers: { "x-line-signature": await signBody(body, "line-secret") },
+          body,
+        }),
+        dependencies({
+          handleTextMessage: async () => {
+            throw new Error("handler unavailable");
+          },
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(consoleError).toHaveBeenCalledWith("Failed to handle LINE text message", {
+        name: "Error",
+        message: "handler unavailable",
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("ignores non-text message events", async () => {
