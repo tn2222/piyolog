@@ -205,6 +205,13 @@ describe("worker entrypoint", () => {
 
   it("routes LINE webhooks to the assistant and replies to LINE", async () => {
     const originalFetch = globalThis.fetch;
+    const waitUntilTasks: Promise<void>[] = [];
+    const lineCtx = {
+      ...ctx,
+      waitUntil: vi.fn((task: Promise<void>) => {
+        waitUntilTasks.push(task);
+      }),
+    } satisfies ExecutionContext;
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -251,11 +258,18 @@ describe("worker entrypoint", () => {
           body,
         }),
         env,
-        ctx,
+        lineCtx,
       );
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true });
+      expect(lineCtx.waitUntil).toHaveBeenCalledOnce();
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        "https://api.line.me/v2/bot/message/reply",
+        expect.anything(),
+      );
+      expect(waitUntilTasks).toHaveLength(1);
+      await waitUntilTasks[0];
       expect(connect).toHaveBeenCalledWith({
         url: "mysql://example",
         fullResult: true,

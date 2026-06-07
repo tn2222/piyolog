@@ -77,7 +77,7 @@ describe("handleLineWebhookRequest", () => {
     expect(handleTextMessage).not.toHaveBeenCalled();
   });
 
-  it("passes text message events to the injected handler", async () => {
+  it("passes text message events to the injected handler through waitUntil", async () => {
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -93,6 +93,7 @@ describe("handleLineWebhookRequest", () => {
       ],
     });
     const handleTextMessage = vi.fn();
+    const waitUntil = vi.fn();
 
     const response = await handleLineWebhookRequest(
       new Request("https://example.com/api/line/webhook", {
@@ -100,18 +101,60 @@ describe("handleLineWebhookRequest", () => {
         headers: { "x-line-signature": await signBody(body, "line-secret") },
         body,
       }),
-      dependencies({ handleTextMessage }),
+      dependencies({ handleTextMessage, waitUntil }),
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
+    expect(waitUntil).toHaveBeenCalledOnce();
     expect(handleTextMessage).toHaveBeenCalledWith({
       replyToken: "reply-token",
       text: "昨日のミルク量をまとめて",
     });
   });
 
-  it("logs text message handler failures and still acknowledges the webhook", async () => {
+  it("acknowledges the webhook before the text message handler resolves", async () => {
+    const body = JSON.stringify({
+      destination: "Uxxxxxxxx",
+      events: [
+        {
+          type: "message",
+          replyToken: "reply-token",
+          message: {
+            type: "text",
+            id: "message-id",
+            text: "昨日のミルク量をまとめて",
+          },
+        },
+      ],
+    });
+    let resolveHandler: () => void = () => undefined;
+    const handlerPromise = new Promise<void>((resolve) => {
+      resolveHandler = resolve;
+    });
+    const handleTextMessage = vi.fn(() => handlerPromise);
+    const waitUntil = vi.fn();
+
+    const responsePromise = handleLineWebhookRequest(
+      new Request("https://example.com/api/line/webhook", {
+        method: "POST",
+        headers: { "x-line-signature": await signBody(body, "line-secret") },
+        body,
+      }),
+      dependencies({ handleTextMessage, waitUntil }),
+    );
+
+    const response = await responsePromise;
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(waitUntil).toHaveBeenCalledOnce();
+    expect(handleTextMessage).toHaveBeenCalledOnce();
+
+    resolveHandler();
+    await handlerPromise;
+  });
+
+  it("logs text message handler failures from waitUntil and still acknowledges the webhook", async () => {
     const body = JSON.stringify({
       destination: "Uxxxxxxxx",
       events: [
@@ -127,6 +170,7 @@ describe("handleLineWebhookRequest", () => {
       ],
     });
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const waitUntilTasks: Promise<void>[] = [];
 
     try {
       const response = await handleLineWebhookRequest(
@@ -136,6 +180,9 @@ describe("handleLineWebhookRequest", () => {
           body,
         }),
         dependencies({
+          waitUntil: (task) => {
+            waitUntilTasks.push(task);
+          },
           handleTextMessage: async () => {
             throw new Error("handler unavailable");
           },
@@ -144,6 +191,8 @@ describe("handleLineWebhookRequest", () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true });
+      expect(waitUntilTasks).toHaveLength(1);
+      await waitUntilTasks[0];
       expect(consoleError).toHaveBeenCalledWith("Failed to handle LINE text message", {
         name: "Error",
         message: "handler unavailable",
@@ -187,6 +236,7 @@ function dependencies(
   return {
     lineChannelSecret: "line-secret",
     handleTextMessage: () => undefined,
+    waitUntil: () => undefined,
     ...overrides,
   };
 }
