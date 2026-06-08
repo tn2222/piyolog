@@ -1,12 +1,12 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
-import { HttpLlmGatewayClient } from "./gateway/llmGatewayClient";
-import { handleMcpRequest } from "./gateway/mcpController";
-import { handleSlackCommandRequest } from "./gateway/slackController";
-import { createTiDBSummaryPeriodQueryService } from "./gateway/summaryPeriodQueryService";
+import { handleMcpRequest } from "./controller/mcpController";
+import { handleSlackCommandRequest } from "./controller/slackController";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
+import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewayClient";
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
+import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
 import { createTiDBPiyologRepository } from "./repository";
 import { resolveSecrets } from "./secrets";
 import type { Env } from "./types";

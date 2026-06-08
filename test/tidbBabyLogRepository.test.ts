@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createTiDBBabyLogRepository,
   TiDBBabyLogRepository,
-} from "../src/gateway/tidbBabyLogRepository";
+} from "../src/infrastructure/repository/tidbBabyLogRepository";
 
 vi.mock("@tidbcloud/serverless", () => ({
   connect: vi.fn(() => ({

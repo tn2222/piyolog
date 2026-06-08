@@ -1,4 +1,4 @@
-import type { BabyLogToolCall, BabyLogToolDefinition } from "../domain/tools";
+import type { BabyLogToolCall, BabyLogToolDefinition } from "../../domain/tools";
 
 export type ToolSelectionRequest = {
   app: "piyolog";

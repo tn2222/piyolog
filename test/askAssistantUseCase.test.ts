@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { askAssistant } from "../src/application/askAssistantUseCase";
-import type { LlmGatewayInterface } from "../src/gateway/llmGatewayClient";
+import type { LlmGatewayInterface } from "../src/infrastructure/externalService/llmGatewayClient";
 import type {
   CompareMetricInput,
   PiyologRepositoryInterface,
