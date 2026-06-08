@@ -196,6 +196,91 @@ describe("worker entrypoint", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it("lists the authenticated get_recent_baby_logs MCP read tool", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp?token=secret-token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/list",
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 5,
+      result: {
+        tools: [
+          {
+            name: "ping_piyolog",
+            title: "Ping piyolog",
+            description: "Return pong to verify ChatGPT can call the piyolog MCP server.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+            outputSchema: {
+              type: "object",
+              properties: {
+                message: { type: "string" },
+              },
+              required: ["message"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "get_recent_baby_logs",
+            title: "Get recent baby logs",
+            description:
+              "Get recent piyolog baby logs and diary journals for a bounded date range. Use this before answering questions about recent feeding, sleep, diaper, crying, or daily rhythm records.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                from: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+                to: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+                includeDiaries: { type: "boolean" },
+                eventTypes: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+              required: ["from", "to"],
+              additionalProperties: false,
+            },
+            outputSchema: {
+              type: "object",
+              properties: {
+                range: {
+                  type: "object",
+                  properties: {
+                    from: { type: "string" },
+                    to: { type: "string" },
+                  },
+                  required: ["from", "to"],
+                  additionalProperties: false,
+                },
+                days: { type: "array" },
+              },
+              required: ["range", "days"],
+              additionalProperties: false,
+            },
+            annotations: {
+              readOnlyHint: true,
+            },
+          },
+        ],
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("initializes the minimal piyolog MCP server", async () => {
     const response = await worker.fetch(
       new Request("https://example.com/mcp", {
@@ -236,6 +321,46 @@ describe("worker entrypoint", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it("initializes the authenticated piyolog MCP server with read tool instructions", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp?token=secret-token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 7,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "chatgpt", version: "test" },
+          },
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 7,
+      result: {
+        protocolVersion: "2025-06-18",
+        capabilities: {
+          tools: {},
+        },
+        serverInfo: {
+          name: "piyolog-mcp",
+          version: "0.1.0",
+        },
+        instructions:
+          "Use ping_piyolog to verify connectivity. Use get_recent_baby_logs to read recent piyolog baby logs and diary journals before answering questions about recent feeding, sleep, diaper, crying, or daily rhythm records.",
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("returns pong from the ping_piyolog MCP tool", async () => {
     const response = await worker.fetch(
       new Request("https://example.com/mcp", {
@@ -262,6 +387,142 @@ describe("worker entrypoint", () => {
       result: {
         structuredContent: { message: "pong" },
         content: [{ type: "text", text: "pong" }],
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("returns recent baby logs from the MCP read tool", async () => {
+    execute
+      .mockResolvedValueOnce({
+        lastInsertId: null,
+        rows: [
+          {
+            occurred_at: "2026-06-07 08:30:00",
+            event_date: "2026-06-07",
+            event_type: "ミルク",
+            amount_value: 120,
+            amount_unit: "ml",
+            left_seconds: null,
+            right_seconds: null,
+            last_side: null,
+            raw_event: { time: "08:30", label: "ミルク", detail: "120ml" },
+          },
+          {
+            occurred_at: "2026-06-07 09:15:00",
+            event_date: "2026-06-07",
+            event_type: "睡眠",
+            amount_value: null,
+            amount_unit: null,
+            left_seconds: null,
+            right_seconds: null,
+            last_side: null,
+            raw_event: { time: "09:15", label: "睡眠" },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        lastInsertId: null,
+        rows: [
+          {
+            entry_date: "2026-06-07",
+            journal: "朝はよく飲んだ",
+          },
+        ],
+      });
+
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp?token=secret-token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "tools/call",
+          params: {
+            name: "get_recent_baby_logs",
+            arguments: {
+              from: "2026-06-07",
+              to: "2026-06-08",
+              eventTypes: ["ミルク"],
+            },
+          },
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 4,
+      result: {
+        structuredContent: {
+          range: { from: "2026-06-07", to: "2026-06-08" },
+          days: [
+            {
+              date: "2026-06-07",
+              events: [
+                {
+                  occurred_at: "2026-06-07 08:30:00",
+                  event_date: "2026-06-07",
+                  event_type: "ミルク",
+                  amount_value: 120,
+                  amount_unit: "ml",
+                  left_seconds: null,
+                  right_seconds: null,
+                  last_side: null,
+                  raw_event: { time: "08:30", label: "ミルク", detail: "120ml" },
+                },
+              ],
+              journal: "朝はよく飲んだ",
+            },
+          ],
+        },
+        content: [
+          {
+            type: "text",
+            text: "2026-06-07 から 2026-06-08 までの育児ログを1日分取得しました。",
+          },
+        ],
+      },
+    });
+    expect(connect).toHaveBeenCalledWith({
+      url: "mysql://example",
+      fullResult: true,
+    });
+  });
+
+  it("rejects unauthenticated MCP baby log reads", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 6,
+          method: "tools/call",
+          params: {
+            name: "get_recent_baby_logs",
+            arguments: {
+              from: "2026-06-07",
+              to: "2026-06-08",
+            },
+          },
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 6,
+      error: {
+        code: -32001,
+        message: "Unauthorized read tool call",
       },
     });
     expect(connect).not.toHaveBeenCalled();
