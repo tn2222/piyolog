@@ -20,7 +20,20 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/mcp") {
-      return handleMcpRequest(request);
+      return handleMcpRequest(request, {
+        createSummaryPeriodQueryService: async () => {
+          const resolvedEnv = await resolveSecrets(env);
+          return createTiDBSummaryPeriodQueryService(resolvedEnv.DATABASE_URL);
+        },
+        isReadAuthorized: async (mcpRequest) => {
+          const token = new URL(mcpRequest.url).searchParams.get("token");
+          if (token === null) {
+            return false;
+          }
+          const resolvedEnv = await resolveSecrets(env);
+          return token === resolvedEnv.INGEST_TOKEN;
+        },
+      });
     }
 
     if (

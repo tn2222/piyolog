@@ -217,7 +217,11 @@ Get recent piyolog baby logs and diary journals for a bounded date range. Use th
 
 ## 認証・認可
 
-家庭データを読むtoolは、MCP endpointに認可方針が入るまでproduction用途では追加しない。
+家庭データを読むtoolは、URLを知っているだけで呼べる裸の `/mcp` には公開しない。
+
+最初のMVPでは、既存の `INGEST_TOKEN` をquery parameterとして受け取る `https://<deployed-worker-url>/mcp?token=<INGEST_TOKEN>` だけに `get_recent_baby_logs` を公開する。裸の `/mcp` では `ping_piyolog` のみを公開し、`get_recent_baby_logs` の `tools/call` は未認可エラーにする。
+
+これはMVP用の暫定認可であり、正式な家庭単位の認可ではない。token付きURLをChatGPT custom appへ登録できるかを確認するための実装と位置づける。
 
 認可方針は最低限次を満たす必要がある。
 
@@ -226,7 +230,7 @@ Get recent piyolog baby logs and diary journals for a bounded date range. Use th
 - 2人は同じ家庭データを読む。
 - 将来のwrite actionで、誰が何を保存したかaudit logに残せる。
 
-ChatGPT custom MCP app登録で問題なく使えるならOAuthを優先する。私的MVPとして一時的にallow-list token方式を使う場合も、暫定策であることを明記し、write actionへ進む前に再検討する。
+ChatGPT custom MCP app登録で問題なく使えるならOAuthを優先する。私的MVPとして一時的にtoken方式を使う場合も、write actionへ進む前に再検討する。
 
 ## Consequences
 
@@ -242,7 +246,8 @@ ChatGPT custom MCP app登録で問題なく使えるならOAuthを優先する�
 
 - 汎用 `run_agent` より、toolごとのschemaとuse caseを維持する手間が増える。
 - MCP tool schemaとApplication層のinput typeを同期して保つ必要がある。
-- 家庭データを読む前に認証・認可を設計する必要がある。
+- 暫定token方式では、token付きURLの扱いに注意が必要になる。
+- write actionへ進む前に、OAuthまたは家庭単位の許可リストへ移行する必要がある。
 
 ### Neutral
 
