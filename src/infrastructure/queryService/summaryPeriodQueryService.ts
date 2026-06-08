@@ -5,7 +5,7 @@ import type {
   SummarizePeriodResult,
   SummaryPeriodDay,
   SummaryPeriodQueryServiceInterface,
-} from "../types";
+} from "../../types";
 
 type TiDBConnection = {
   execute(sql: string, params?: unknown[]): Promise<QueryResult>;

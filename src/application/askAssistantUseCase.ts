@@ -3,7 +3,7 @@ import {
   parseBabyLogToolCall,
   type BabyLogToolCall,
 } from "../domain/tools";
-import type { LlmGatewayInterface } from "../gateway/llmGatewayClient";
+import type { LlmGatewayInterface } from "../infrastructure/externalService/llmGatewayClient";
 import type {
   PiyologRepositoryInterface,
   SummaryPeriodQueryServiceInterface,

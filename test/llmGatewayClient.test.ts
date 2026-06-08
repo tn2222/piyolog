@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { HttpLlmGatewayClient } from "../src/gateway/llmGatewayClient";
+import { HttpLlmGatewayClient } from "../src/infrastructure/externalService/llmGatewayClient";
 import { parseBabyLogToolCall } from "../src/domain/tools";
 
 describe("HttpLlmGatewayClient", () => {

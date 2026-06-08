@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleSlackCommandRequest } from "../src/gateway/slackController";
+import { handleSlackCommandRequest } from "../src/controller/slackController";
 
 describe("handleSlackCommandRequest", () => {
   it("rejects non-POST requests", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TiDBSummaryPeriodQueryService } from "../src/gateway/summaryPeriodQueryService";
+import { TiDBSummaryPeriodQueryService } from "../src/infrastructure/queryService/summaryPeriodQueryService";
 
 type QueryCall = {
   sql: string;
