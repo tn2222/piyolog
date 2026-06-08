@@ -52,6 +52,14 @@ Output:
 }
 ```
 
+## 読み取りtoolの設計方針
+
+`ping_piyolog` の次に追加する本番向けtoolは、MCP serverを本体にせず、piyolog Agent Core / Domain APIのadapterとして実装します。
+
+最初の読み取りtool候補は `get_recent_baby_logs` です。ChatGPT webから期間を指定して、ぴよログの時刻付きイベントと育児日記を取得するために使います。
+
+MCP toolとAgent Core APIの責務分離、tool名、input schema、`run_agent(message)` を避ける方針は [MCP向け読み取りAPI境界のADR](../decisions/2026-06-08-design-mcp-read-api-boundary.md) を参照してください。
+
 ## ChatGPT webでの登録手順
 
 1. `npm run deploy` でWorkerをdeployする。
