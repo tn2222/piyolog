@@ -45,6 +45,7 @@ npm run notify:formula -- --dry-run
 - [Macのミルク時間通知](scripts/README.md)
 - [AI Agent Slackインターフェース](docs/ai-agent/slack.md)
 - [AI Agent LINEインターフェース](docs/ai-agent/line.md)
+- [AI Agent MCPインターフェース](docs/ai-agent/mcp.md)
 - [Grafana Cloud](docs/grafana.md)
 - [セキュリティ](docs/security.md)
 - [デプロイ](docs/deployment.md)
@@ -58,6 +59,7 @@ POST /api/text-records?token=<INGEST_TOKEN>
 POST /api/custom-action-captures?token=<INGEST_TOKEN>
 POST /api/slack/commands
 POST /api/line/webhook
+POST /mcp
 ```
 
 各エンドポイントのpayloadや疎通確認方法は、対応するドキュメントを参照してください。

@@ -2,6 +2,7 @@ import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
 import { HttpLlmGatewayClient } from "./gateway/llmGatewayClient";
+import { handleMcpRequest } from "./gateway/mcpController";
 import { handleSlackCommandRequest } from "./gateway/slackController";
 import { createTiDBSummaryPeriodQueryService } from "./gateway/summaryPeriodQueryService";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
@@ -17,6 +18,10 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/mcp") {
+      return handleMcpRequest(request);
+    }
 
     if (
       url.pathname !== "/api/slack/commands" &&

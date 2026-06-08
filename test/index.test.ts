@@ -151,6 +151,122 @@ describe("worker entrypoint", () => {
     });
   });
 
+  it("lists the ping_piyolog MCP tool without resolving secrets", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        tools: [
+          {
+            name: "ping_piyolog",
+            title: "Ping piyolog",
+            description: "Return pong to verify ChatGPT can call the piyolog MCP server.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+            outputSchema: {
+              type: "object",
+              properties: {
+                message: { type: "string" },
+              },
+              required: ["message"],
+              additionalProperties: false,
+            },
+          },
+        ],
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("initializes the minimal piyolog MCP server", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 3,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "chatgpt", version: "test" },
+          },
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 3,
+      result: {
+        protocolVersion: "2025-06-18",
+        capabilities: {
+          tools: {},
+        },
+        serverInfo: {
+          name: "piyolog-mcp",
+          version: "0.1.0",
+        },
+        instructions:
+          "Use ping_piyolog only to verify that ChatGPT can reach the piyolog MCP server.",
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("returns pong from the ping_piyolog MCP tool", async () => {
+    const response = await worker.fetch(
+      new Request("https://example.com/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "ping_piyolog",
+            arguments: {},
+          },
+        }),
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 2,
+      result: {
+        structuredContent: { message: "pong" },
+        content: [{ type: "text", text: "pong" }],
+      },
+    });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("routes Slack slash commands to the assistant", async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
