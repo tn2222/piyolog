@@ -11,7 +11,8 @@ function syncPiyologTextExports() {
   const endpoint = getRequiredProperty(scriptProperties, PROPERTY_KEYS.workerTextEndpoint);
   const token = getRequiredProperty(scriptProperties, PROPERTY_KEYS.ingestToken);
   const folder = DriveApp.getFolderById(folderId);
-  const latestFile = findLatestTextFile(folder);
+  const textFiles = collectTextFiles(folder);
+  const latestFile = textFiles.latestFile;
 
   if (latestFile === null) {
     return;
@@ -19,19 +20,19 @@ function syncPiyologTextExports() {
 
   const updatedAt = latestFile.getLastUpdated().toISOString();
   const fileKey = `${latestFile.getId()}:${updatedAt}`;
-  if (scriptProperties.getProperty(PROPERTY_KEYS.lastProcessedFileKey) === fileKey) {
-    return;
+  if (scriptProperties.getProperty(PROPERTY_KEYS.lastProcessedFileKey) !== fileKey) {
+    postTextExport(endpoint, token, {
+      source: "google_drive_text_export",
+      fileId: latestFile.getId(),
+      fileName: latestFile.getName(),
+      updatedAt,
+      text: latestFile.getBlob().getDataAsString("UTF-8"),
+    });
+
+    scriptProperties.setProperty(PROPERTY_KEYS.lastProcessedFileKey, fileKey);
   }
 
-  postTextExport(endpoint, token, {
-    source: "google_drive_text_export",
-    fileId: latestFile.getId(),
-    fileName: latestFile.getName(),
-    updatedAt,
-    text: latestFile.getBlob().getDataAsString("UTF-8"),
-  });
-
-  scriptProperties.setProperty(PROPERTY_KEYS.lastProcessedFileKey, fileKey);
+  trashFiles(textFiles.oldFiles);
 }
 
 function postTextExport(endpoint, token, payload) {
@@ -68,8 +69,13 @@ function isTextFile(file) {
 }
 
 function findLatestTextFile(folder) {
+  return collectTextFiles(folder).latestFile;
+}
+
+function collectTextFiles(folder) {
   const files = folder.getFiles();
   let latestFile = null;
+  const oldFiles = [];
 
   while (files.hasNext()) {
     const file = files.next();
@@ -77,10 +83,36 @@ function findLatestTextFile(folder) {
       continue;
     }
 
-    if (latestFile === null || file.getLastUpdated() > latestFile.getLastUpdated()) {
+    if (latestFile === null) {
       latestFile = file;
+      continue;
     }
+
+    if (file.getLastUpdated() > latestFile.getLastUpdated()) {
+      oldFiles.push(latestFile);
+      latestFile = file;
+      continue;
+    }
+
+    oldFiles.push(file);
   }
 
-  return latestFile;
+  return { latestFile, oldFiles };
+}
+
+function trashFiles(files) {
+  const failures = [];
+
+  files.forEach((file) => {
+    try {
+      file.setTrashed(true);
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      failures.push(`${file.getName()}: ${message}`);
+    }
+  });
+
+  if (failures.length > 0) {
+    throw new Error(`Failed to trash old text files: ${failures.join("; ")}`);
+  }
 }
