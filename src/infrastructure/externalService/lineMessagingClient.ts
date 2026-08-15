@@ -1,4 +1,4 @@
-import type { LineMessagingClientInterface } from "../../application/handleLineTextMessageUseCase";
+import type { LineMessagingClientInterface } from "../../domain/lineMessagingClientInterface";
 
 type HttpLineMessagingClientInput = {
   channelAccessToken: string;

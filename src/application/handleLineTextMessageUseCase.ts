@@ -1,8 +1,5 @@
+import type { LineMessagingClientInterface } from "../domain/lineMessagingClientInterface";
 import type { AskAssistantResult } from "./askAssistantUseCase";
-
-export type LineMessagingClientInterface = {
-  replyText(replyToken: string, text: string): Promise<void>;
-};
 
 export type HandleLineTextMessageInput = {
   replyToken: string;
