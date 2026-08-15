@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleLineTextMessage } from "../src/application/handleLineTextMessageUseCase";
+import type { LineMessagingClientInterface } from "../src/domain/lineMessagingClientInterface";
 
 describe("handleLineTextMessage", () => {
   it("passes the LINE text to the assistant and replies with the assistant text", async () => {
@@ -9,7 +10,7 @@ describe("handleLineTextMessage", () => {
     }));
     const lineMessagingClient = {
       replyText: vi.fn(async () => undefined),
-    };
+    } satisfies LineMessagingClientInterface;
 
     await handleLineTextMessage({
       replyToken: "reply-token",
