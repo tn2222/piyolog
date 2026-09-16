@@ -1,20 +1,35 @@
 import type {
-  PiyologDataFeedApplyResult,
-  PiyologDataFeedProjection,
-  PiyologDataFeedSnapshot,
+  PiyologDataFeedRange,
+  PiyologDataFeedRepository,
+  UtcTimestamp,
   PiyologDataFeedClient,
 } from "../domain/piyologDataFeed";
 
-export type PiyologDataFeedUpdateDependencies = {
-  client: PiyologDataFeedClient;
-  projection: PiyologDataFeedProjection;
+export type PiyologDataFeedTransaction = {
+  run(work: (repository: PiyologDataFeedRepository) => Promise<void>): Promise<void>;
 };
 
-export type PiyologDataFeedUpdateResult = PiyologDataFeedApplyResult;
+export type PiyologDataFeedUpdateDependencies = {
+  client: PiyologDataFeedClient;
+  transaction: PiyologDataFeedTransaction;
+};
+
+export type PiyologDataFeedUpdateResult = {
+  generatedAt: UtcTimestamp;
+  range: PiyologDataFeedRange;
+  recordCount: number;
+};
 
 export async function updatePiyologDataFeed(
   dependencies: PiyologDataFeedUpdateDependencies,
 ): Promise<PiyologDataFeedUpdateResult> {
-  const snapshot: PiyologDataFeedSnapshot = await dependencies.client.getDataFeed();
-  return dependencies.projection.apply(snapshot);
+  const snapshot = await dependencies.client.getDataFeed();
+  await dependencies.transaction.run(async (repository) => {
+    await repository.replaceRange(snapshot);
+  });
+  return {
+    generatedAt: snapshot.generatedAt,
+    range: snapshot.range,
+    recordCount: snapshot.records.length,
+  };
 }

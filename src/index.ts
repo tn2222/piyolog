@@ -9,7 +9,7 @@ import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewa
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
 import { createPiyologDataFeedClient } from "./infrastructure/externalService/piyologDataFeedClient";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
-import { createTiDBPiyologDataFeedProjection } from "./infrastructure/repository/tidbPiyologDataFeedProjection";
+import { createTiDBPiyologDataFeedTransaction } from "./infrastructure/transaction/tidbPiyologDataFeedTransaction";
 import { createTiDBPiyologRepository } from "./repository";
 import { resolvePiyologDataFeedSecrets, resolveSecrets } from "./secrets";
 import type { Env } from "./types";
@@ -123,7 +123,7 @@ export default {
       const feedEnv = await resolvePiyologDataFeedSecrets(env);
       const result = await updatePiyologDataFeed({
         client: createPiyologDataFeedClient({ url: feedEnv.PIYOLOG_FEED_URL }),
-        projection: createTiDBPiyologDataFeedProjection(feedEnv.DATABASE_URL),
+        transaction: createTiDBPiyologDataFeedTransaction(feedEnv.DATABASE_URL),
       });
 
       console.log("Piyolog data feed refresh completed", {

@@ -1,45 +1,30 @@
-import { connect } from "@tidbcloud/serverless";
 import type {
   PiyologDataFeedRecord,
-  PiyologDataFeedApplyResult,
-  PiyologDataFeedProjection,
+  PiyologDataFeedRepository,
   PiyologDataFeedSnapshot,
 } from "../../domain/piyologDataFeed";
 import { toTiDBDateTime } from "../../domain/piyologDataFeed";
 
-type TiDBQueryResult = {
-  rows?: unknown[] | null;
+export type PiyologDataFeedConnection = {
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
 };
 
-export type PiyologDataFeedTransaction = {
-  execute(sql: string, params?: unknown[]): Promise<TiDBQueryResult>;
-  commit(): Promise<unknown>;
-  rollback(): Promise<unknown>;
-};
+export class TiDBPiyologDataFeedRepository implements PiyologDataFeedRepository {
+  constructor(private readonly connection: PiyologDataFeedConnection) {}
 
-export type PiyologDataFeedTransactionalConnection = {
-  begin(): Promise<PiyologDataFeedTransaction>;
-};
-
-export class TiDBPiyologDataFeedProjection implements PiyologDataFeedProjection {
-  constructor(private readonly connection: PiyologDataFeedTransactionalConnection) {}
-
-  async apply(snapshot: PiyologDataFeedSnapshot): Promise<PiyologDataFeedApplyResult> {
-    const transaction = await this.connection.begin();
-
-    try {
-      await transaction.execute(
-        `
+  async replaceRange(snapshot: PiyologDataFeedSnapshot): Promise<void> {
+    await this.connection.execute(
+      `
 DELETE FROM piyolog_feed_events
 WHERE occurred_at >= ?
   AND occurred_at < ?
-        `.trim(),
-        [toTiDBDateTime(snapshot.range.from), toTiDBDateTime(snapshot.range.to)],
-      );
+      `.trim(),
+      [toTiDBDateTime(snapshot.range.from), toTiDBDateTime(snapshot.range.to)],
+    );
 
-      for (const records of chunk(snapshot.records, 100)) {
-        await transaction.execute(
-          `
+    for (const records of chunk(snapshot.records, 100)) {
+      await this.connection.execute(
+        `
 INSERT INTO piyolog_feed_events (
   event_id,
   occurred_at,
@@ -68,33 +53,11 @@ ON DUPLICATE KEY UPDATE
   details_color = VALUES(details_color),
   raw_record = VALUES(raw_record),
   updated_at = CURRENT_TIMESTAMP
-          `.trim(),
-          records.flatMap(toEventParams),
-        );
-      }
-
-      await transaction.commit();
-      return {
-        generatedAt: snapshot.generatedAt,
-        range: snapshot.range,
-        recordCount: snapshot.records.length,
-      };
-    } catch (error) {
-      try {
-        await transaction.rollback();
-      } catch {
-      }
-      throw error;
+        `.trim(),
+        records.flatMap(toEventParams),
+      );
     }
   }
-}
-
-export function createTiDBPiyologDataFeedProjection(
-  databaseUrl: string,
-): PiyologDataFeedProjection {
-  return new TiDBPiyologDataFeedProjection(
-    connect({ url: databaseUrl, fullResult: true }) as unknown as PiyologDataFeedTransactionalConnection,
-  );
 }
 
 function toEventParams(record: PiyologDataFeedRecord): unknown[] {

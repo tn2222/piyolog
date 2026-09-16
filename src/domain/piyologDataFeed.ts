@@ -43,14 +43,8 @@ export type PiyologDataFeedClient = {
   getDataFeed(): Promise<PiyologDataFeedSnapshot>;
 };
 
-export type PiyologDataFeedApplyResult = {
-  generatedAt: UtcTimestamp;
-  range: PiyologDataFeedRange;
-  recordCount: number;
-};
-
-export type PiyologDataFeedProjection = {
-  apply(snapshot: PiyologDataFeedSnapshot): Promise<PiyologDataFeedApplyResult>;
+export type PiyologDataFeedRepository = {
+  replaceRange(snapshot: PiyologDataFeedSnapshot): Promise<void>;
 };
 
 export class PiyologDataFeedValidationError extends Error {

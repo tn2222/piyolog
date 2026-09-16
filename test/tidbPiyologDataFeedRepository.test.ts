@@ -1,23 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
-import { TiDBPiyologDataFeedProjection } from "../src/infrastructure/repository/tidbPiyologDataFeedProjection";
+import { TiDBPiyologDataFeedRepository } from "../src/infrastructure/repository/tidbPiyologDataFeedRepository";
 
-describe("TiDBPiyologDataFeedProjection", () => {
-  it("deletes the half-open range and bulk upserts the snapshot in one transaction", async () => {
-    const transaction = createTransaction();
-    const projection = new TiDBPiyologDataFeedProjection({
-      begin: vi.fn(async () => transaction),
-    });
+describe("TiDBPiyologDataFeedRepository", () => {
+  it("deletes the half-open range and bulk upserts the snapshot using the supplied connection", async () => {
+    const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
+    const repository = new TiDBPiyologDataFeedRepository(connection);
     const snapshot = snapshotWithRecords();
 
-    await expect(projection.apply(snapshot)).resolves.toMatchObject({ recordCount: 2 });
+    await expect(repository.replaceRange(snapshot)).resolves.toBeUndefined();
 
-    expect(transaction.execute).toHaveBeenNthCalledWith(
+    expect(connection.execute).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining("DELETE FROM piyolog_feed_events"),
       ["2026-09-16 00:00:00.000", "2026-09-16 01:00:00.000"],
     );
-    expect(transaction.execute).toHaveBeenNthCalledWith(
+    expect(connection.execute).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("ON DUPLICATE KEY UPDATE"),
       [
@@ -57,16 +55,12 @@ describe("TiDBPiyologDataFeedProjection", () => {
         }),
       ],
     );
-    expect(transaction.execute).toHaveBeenCalledTimes(2);
-    expect(transaction.commit).toHaveBeenCalledOnce();
-    expect(transaction.rollback).not.toHaveBeenCalled();
+    expect(connection.execute).toHaveBeenCalledTimes(2);
   });
 
   it("applies an empty snapshot as a range clear", async () => {
-    const transaction = createTransaction();
-    const projection = new TiDBPiyologDataFeedProjection({
-      begin: vi.fn(async () => transaction),
-    });
+    const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
+    const repository = new TiDBPiyologDataFeedRepository(connection);
     const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
@@ -77,19 +71,17 @@ describe("TiDBPiyologDataFeedProjection", () => {
       records: [],
     });
 
-    await expect(projection.apply(snapshot)).resolves.toMatchObject({ recordCount: 0 });
-    expect(transaction.execute).toHaveBeenCalledTimes(1);
-    expect(transaction.execute).not.toHaveBeenCalledWith(
+    await expect(repository.replaceRange(snapshot)).resolves.toBeUndefined();
+    expect(connection.execute).toHaveBeenCalledTimes(1);
+    expect(connection.execute).not.toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO piyolog_feed_events"),
       expect.anything(),
     );
   });
 
-  it("chunks large snapshots inside the same transaction", async () => {
-    const transaction = createTransaction();
-    const projection = new TiDBPiyologDataFeedProjection({
-      begin: vi.fn(async () => transaction),
-    });
+  it("chunks large snapshots using the supplied connection", async () => {
+    const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
+    const repository = new TiDBPiyologDataFeedRepository(connection);
     const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
       generated_at: "2026-09-16T02:00:00.000Z",
@@ -104,47 +96,15 @@ describe("TiDBPiyologDataFeedProjection", () => {
       })),
     });
 
-    await projection.apply(snapshot);
+    await repository.replaceRange(snapshot);
 
-    const insertCalls = transaction.execute.mock.calls.filter(
+    const insertCalls = connection.execute.mock.calls.filter(
       ([sql]) => typeof sql === "string" && sql.includes("INSERT INTO piyolog_feed_events"),
     );
     expect(insertCalls).toHaveLength(2);
-    expect(transaction.commit).toHaveBeenCalledOnce();
   });
 
-  it("rolls back and rethrows mutation errors", async () => {
-    const transaction = createTransaction();
-    transaction.execute.mockRejectedValueOnce(new Error("delete failed"));
-    const projection = new TiDBPiyologDataFeedProjection({
-      begin: vi.fn(async () => transaction),
-    });
-
-    await expect(projection.apply(snapshotWithRecords())).rejects.toThrow("delete failed");
-    expect(transaction.rollback).toHaveBeenCalledOnce();
-    expect(transaction.commit).not.toHaveBeenCalled();
-  });
-
-  it("rolls back when commit fails", async () => {
-    const transaction = createTransaction();
-    transaction.commit.mockRejectedValueOnce(new Error("commit failed"));
-    const projection = new TiDBPiyologDataFeedProjection({
-      begin: vi.fn(async () => transaction),
-    });
-
-    await expect(projection.apply(snapshotWithRecords())).rejects.toThrow("commit failed");
-    expect(transaction.rollback).toHaveBeenCalledOnce();
-  });
 });
-
-function createTransaction() {
-  const execute = vi.fn(async (_sql: string) => ({ rows: [] }));
-  return {
-    execute,
-    commit: vi.fn(async () => ({})),
-    rollback: vi.fn(async () => ({})),
-  };
-}
 
 function snapshotWithRecords() {
   return parsePiyologDataFeedSnapshot({
