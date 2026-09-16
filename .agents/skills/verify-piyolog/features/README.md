@@ -25,5 +25,6 @@ This directory is the maintained source for verifying the user-facing behavior o
 - [MCP log reading](./mcp-read-logs.md) covers the token-protected `get_recent_baby_logs` tool.
 - [Text export ingestion](./text-export-ingestion.md) covers `POST /api/text-records` and its database side effect.
 - [Diary capture](./diary-capture.md) covers `POST /api/custom-action-captures` and its database side effect.
+- [Public feed refresh](./piyolog-feed-refresh.md) covers the scheduled feed sync and its database projection.
 - [Slack slash command](./slack-command.md) covers `POST /api/slack/commands`.
 - [LINE webhook](./line-webhook.md) covers signed `POST /api/line/webhook`.
