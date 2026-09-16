@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 
 const execute = vi.fn();
+const begin = vi.fn();
 
 vi.mock("@tidbcloud/serverless", () => ({
   connect: vi.fn(() => ({
     execute,
+    begin,
   })),
 }));
 
@@ -30,6 +32,7 @@ describe("worker entrypoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     execute.mockResolvedValue({ lastInsertId: "123" });
+    begin.mockReset();
   });
 
   it("returns 404 JSON for unknown paths", async () => {
@@ -665,6 +668,76 @@ describe("worker entrypoint", () => {
           }),
         },
       );
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
+  });
+
+  it("refreshes the public feed from the scheduled handler", async () => {
+    const originalFetch = globalThis.fetch;
+    const feedUrl = "https://feed.piyolog.com/v1/feed/24h/feed-id/feed-secret";
+    const transaction = {
+      execute: vi.fn(async (sql: string) => {
+        if (sql.includes("SELECT generated_at")) {
+          return { rows: [{ generated_at: null }] };
+        }
+        return { rows: [] };
+      }),
+      commit: vi.fn(async () => ({})),
+      rollback: vi.fn(async () => ({})),
+    };
+    begin.mockResolvedValue(transaction);
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          schema_version: 1,
+          generated_at: "2026-09-16T01:00:00.000Z",
+          range: {
+            from: "2026-09-16T00:00:00.000Z",
+            to: "2026-09-16T01:00:00.000Z",
+          },
+          records: [],
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(
+        worker.scheduled(
+          { cron: "*/5 * * * *", scheduledTime: 0, noRetry() {} } as ScheduledController,
+          { ...env, PIYOLOG_FEED_URL: feedUrl },
+          ctx,
+        ),
+      ).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledWith(
+        feedUrl,
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(begin).toHaveBeenCalledOnce();
+      expect(transaction.commit).toHaveBeenCalledOnce();
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
+  });
+
+  it("rethrows scheduled feed failures without writing the database", async () => {
+    const originalFetch = globalThis.fetch;
+    const feedUrl = "https://feed.piyolog.com/v1/feed/24h/feed-id/feed-secret";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("unavailable", { status: 503 })),
+    );
+
+    try {
+      await expect(
+        worker.scheduled(
+          { cron: "*/5 * * * *", scheduledTime: 0, noRetry() {} } as ScheduledController,
+          { ...env, PIYOLOG_FEED_URL: feedUrl },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ code: "http_error", status: 503 });
+      expect(begin).not.toHaveBeenCalled();
     } finally {
       vi.stubGlobal("fetch", originalFetch);
     }

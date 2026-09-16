@@ -6,6 +6,9 @@
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   "secrets_store_secrets": [
     {
       "binding": "INGEST_TOKEN",
@@ -16,6 +19,11 @@
       "binding": "DATABASE_URL",
       "store_id": "59f28da79e5048bd82aafd4aefd97b37",
       "secret_name": "PIYOLOG_DATABASE_URL"
+    },
+    {
+      "binding": "PIYOLOG_FEED_URL",
+      "store_id": "59f28da79e5048bd82aafd4aefd97b37",
+      "secret_name": "PIYOLOG_FEED_URL"
     },
     {
       "binding": "SLACK_COMMAND_TOKEN",

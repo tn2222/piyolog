@@ -1,14 +1,17 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
+import { refreshPiyologFeed } from "./application/refreshPiyologFeedUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
 import { handleMcpRequest } from "./controller/mcpController";
 import { handleSlackCommandRequest } from "./controller/slackController";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewayClient";
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
+import { createPiyologFeedSource } from "./infrastructure/externalService/piyologFeedSource";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
+import { createTiDBPiyologFeedProjection } from "./infrastructure/repository/tidbPiyologFeedProjection";
 import { createTiDBPiyologRepository } from "./repository";
-import { resolveSecrets } from "./secrets";
+import { resolvePiyologFeedSecrets, resolveSecrets } from "./secrets";
 import type { Env } from "./types";
 
 export default {
@@ -110,4 +113,59 @@ export default {
       createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
     );
   },
+
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    _ctx: ExecutionContext,
+  ): Promise<void> {
+    try {
+      const feedEnv = await resolvePiyologFeedSecrets(env);
+      const result = await refreshPiyologFeed({
+        source: createPiyologFeedSource({ url: feedEnv.PIYOLOG_FEED_URL }),
+        projection: createTiDBPiyologFeedProjection(feedEnv.DATABASE_URL),
+      });
+
+      console.log("Piyolog feed refresh completed", {
+        status: result.status,
+        generatedAt: result.generatedAt,
+        rangeFrom: result.range.from,
+        rangeTo: result.range.to,
+        recordCount: result.recordCount,
+      });
+    } catch (error) {
+      console.error("Piyolog feed refresh failed", summarizeFeedError(error));
+      throw error;
+    }
+  },
 };
+
+function summarizeFeedError(error: unknown): {
+  errorClass: string;
+  errorCode?: string;
+  httpStatus?: number;
+} {
+  const summary: {
+    errorClass: string;
+    errorCode?: string;
+    httpStatus?: number;
+  } = {
+    errorClass: error instanceof Error ? error.name : typeof error,
+  };
+
+  if (typeof error !== "object" || error === null) {
+    return summary;
+  }
+
+  const errorCode = "code" in error ? error.code : undefined;
+  if (typeof errorCode === "string") {
+    summary.errorCode = errorCode;
+  }
+
+  const httpStatus = "status" in error ? error.status : undefined;
+  if (typeof httpStatus === "number") {
+    summary.httpStatus = httpStatus;
+  }
+
+  return summary;
+}

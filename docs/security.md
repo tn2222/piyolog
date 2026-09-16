@@ -8,6 +8,7 @@ Apps Script とカスタムアクションからの取り込みリクエスト�
 - 十分に長いランダムなトークンを使う
 - URL全体やトークンをログに残さない
 - トークンが漏れた可能性がある場合はすぐにローテーションする
+- ぴよログ公開フィードURLをログやリポジトリに残さない
 
 ## Worker secrets
 
@@ -15,6 +16,7 @@ Worker の実行時 secret は Cloudflare Secrets Store を source of truth と�
 
 - `PIYOLOG_INGEST_TOKEN` -> `INGEST_TOKEN`
 - `PIYOLOG_DATABASE_URL` -> `DATABASE_URL`
+- `PIYOLOG_FEED_URL` -> `PIYOLOG_FEED_URL`
 - `PIYOLOG_SLACK_COMMAND_TOKEN` -> `SLACK_COMMAND_TOKEN`
 - `PIYOLOG_PERSONAL_LLM_GATEWAY_URL` -> `PERSONAL_LLM_GATEWAY_URL`
 - `PIYOLOG_PERSONAL_LLM_GATEWAY_TOKEN` -> `PERSONAL_LLM_GATEWAY_TOKEN`

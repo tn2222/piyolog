@@ -4,6 +4,7 @@ Worker はぴよログのデータを TiDB Cloud Serverless に保存します�
 
 - テキストエクスポート: raw text を保存し、時刻付きの記録行を `piyolog_events` に展開する
 - カスタムアクション: 日付単位の `journal` を `piyolog_diaries` に保存する
+- 公開フィード: 5分ごとに取得し、イベントを `piyolog_feed_events` に範囲単位で置き換える
 
 ## 環境変数
 
@@ -11,12 +12,14 @@ Worker は次の環境変数を使います。
 
 - `INGEST_TOKEN`: 取り込みリクエストに必要な共有トークン
 - `DATABASE_URL`: TiDB Cloud Serverless の接続文字列
+- `PIYOLOG_FEED_URL`: ぴよログ公開フィードのURL
 
 ローカル開発では、Wrangler が読む `.dev.vars` に設定します。
 
 ```sh
 INGEST_TOKEN=replace-with-a-long-random-token
 DATABASE_URL=mysql://user:password@host:4000/database?sslaccept=strict
+PIYOLOG_FEED_URL=https://feed.piyolog.com/v1/feed/24h/replace-with-feed-id/replace-with-feed-secret
 ```
 
 本番環境への反映方法はデプロイ経路に合わせます。手動でsecretsを操作する前に、GitHub Actionsなどのデプロイ設定が既に管理している値と衝突しないことを確認してください。
@@ -29,11 +32,14 @@ Worker にデータを送る前に、TiDB Cloud Serverless で `migrations/` 配
 migrations/001_create_piyolog_events.sql
 migrations/002_create_raw_piyolog_text_exports.sql
 migrations/003_create_piyolog_diaries.sql
+migrations/004_create_piyolog_feed_tables.sql
 ```
 
 `piyolog_events.raw_payload_id` は、現在は `raw_piyolog_text_exports.id` を参照する取り込み元IDとして使っています。既存データベースとの互換性を優先して列名は維持しています。
 
 `piyolog_diaries` は、同じ `baby_nickname`, `baby_date_of_birth`, `entry_date` の日記を置き換えます。`journal` が空文字で送られた場合も空文字として更新し、ぴよログ側で日記を消した状態をDBへ反映します。
+
+`piyolog_feed_events` は公開フィードの `range.from <= occurred_at < range.to` を毎回削除してから、取得レコードを `event_id` でUPSERTします。取得範囲外の履歴は残し、正常な空配列は範囲内を削除します。`piyolog_feed_sync_state` の生成時刻より古いか同じレスポンスは適用しません。
 
 ## ローカル開発
 
@@ -68,6 +74,8 @@ Workerをデプロイします。
 ```sh
 npm run deploy
 ```
+
+WorkerのCron Triggerが5分ごとに公開フィードを取得します。Cloudflare Secrets Storeの `PIYOLOG_FEED_URL` と `migrations/004_create_piyolog_feed_tables.sql` を準備してからWorkerをデプロイしてください。
 
 デプロイ後、Apps Script の `WORKER_TEXT_ENDPOINT` に Worker のテキスト取り込みエンドポイントを設定します。
 
