@@ -39,7 +39,7 @@ export type PiyologDataFeedSnapshot = {
   records: PiyologDataFeedRecord[];
 };
 
-export type PiyologDataFeedSource = {
+export type PiyologDataFeedClient = {
   getDataFeed(): Promise<PiyologDataFeedSnapshot>;
 };
 

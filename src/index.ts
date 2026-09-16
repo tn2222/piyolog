@@ -7,7 +7,7 @@ import { handleSlackCommandRequest } from "./controller/slackController";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewayClient";
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
-import { createPiyologDataFeedSource } from "./infrastructure/externalService/piyologDataFeedSource";
+import { createPiyologDataFeedClient } from "./infrastructure/externalService/piyologDataFeedClient";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
 import { createTiDBPiyologDataFeedProjection } from "./infrastructure/repository/tidbPiyologDataFeedProjection";
 import { createTiDBPiyologRepository } from "./repository";
@@ -122,7 +122,7 @@ export default {
     try {
       const feedEnv = await resolvePiyologDataFeedSecrets(env);
       const result = await updatePiyologDataFeed({
-        source: createPiyologDataFeedSource({ url: feedEnv.PIYOLOG_FEED_URL }),
+        client: createPiyologDataFeedClient({ url: feedEnv.PIYOLOG_FEED_URL }),
         projection: createTiDBPiyologDataFeedProjection(feedEnv.DATABASE_URL),
       });
 

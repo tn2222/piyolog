@@ -1,6 +1,6 @@
 import {
   parsePiyologDataFeedSnapshot,
-  type PiyologDataFeedSource,
+  type PiyologDataFeedClient,
   type PiyologDataFeedSnapshot,
 } from "../../domain/piyologDataFeed";
 
@@ -9,7 +9,7 @@ export type PiyologDataFeedFetch = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-export type PiyologDataFeedSourceOptions = {
+export type PiyologDataFeedClientOptions = {
   url: string;
   fetch?: PiyologDataFeedFetch;
   sleep?: (milliseconds: number) => Promise<void>;
@@ -18,19 +18,19 @@ export type PiyologDataFeedSourceOptions = {
   timeoutMs?: number;
 };
 
-export class PiyologDataFeedSourceError extends Error {
+export class PiyologDataFeedClientError extends Error {
   readonly code: string;
   readonly status: number | null;
 
   constructor(code: string, message: string, status: number | null = null) {
     super(message);
-    this.name = "PiyologDataFeedSourceError";
+    this.name = "PiyologDataFeedClientError";
     this.code = code;
     this.status = status;
   }
 }
 
-export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
+export class HttpPiyologDataFeedClient implements PiyologDataFeedClient {
   private readonly url: string;
   private readonly fetchImpl: PiyologDataFeedFetch;
   private readonly sleep: (milliseconds: number) => Promise<void>;
@@ -38,7 +38,7 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
   private readonly maxAttempts: number;
   private readonly timeoutMs: number;
 
-  constructor(options: PiyologDataFeedSourceOptions) {
+  constructor(options: PiyologDataFeedClientOptions) {
     validateUrl(options.url);
     this.url = options.url;
     this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init));
@@ -48,13 +48,13 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
     this.timeoutMs = options.timeoutMs ?? 10_000;
 
     if (!Number.isInteger(this.maxAttempts) || this.maxAttempts < 1) {
-      throw new PiyologDataFeedSourceError(
+      throw new PiyologDataFeedClientError(
         "invalid_configuration",
         "Feed retry attempts must be a positive integer",
       );
     }
     if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) {
-      throw new PiyologDataFeedSourceError(
+      throw new PiyologDataFeedClientError(
         "invalid_configuration",
         "Feed timeout must be positive",
       );
@@ -82,7 +82,7 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
       const retryable =
         response.status === 429 || (response.status >= 500 && response.status <= 599);
       if (!retryable || attempt === this.maxAttempts) {
-        throw new PiyologDataFeedSourceError(
+        throw new PiyologDataFeedClientError(
           "http_error",
           "Piyolog data feed request returned an unsuccessful status",
           response.status,
@@ -92,7 +92,7 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
       await this.sleep(retryDelay(attempt, this.random));
     }
 
-    throw new PiyologDataFeedSourceError("request_failed", "Piyolog data feed request failed");
+    throw new PiyologDataFeedClientError("request_failed", "Piyolog data feed request failed");
   }
 
   private async request(): Promise<Response> {
@@ -106,17 +106,17 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
         signal: controller.signal,
       });
     } catch {
-      throw new PiyologDataFeedSourceError("request_failed", "Piyolog data feed request failed");
+      throw new PiyologDataFeedClientError("request_failed", "Piyolog data feed request failed");
     } finally {
       clearTimeout(timeoutId);
     }
   }
 }
 
-export function createPiyologDataFeedSource(
-  options: PiyologDataFeedSourceOptions,
-): PiyologDataFeedSource {
-  return new HttpPiyologDataFeedSource(options);
+export function createPiyologDataFeedClient(
+  options: PiyologDataFeedClientOptions,
+): PiyologDataFeedClient {
+  return new HttpPiyologDataFeedClient(options);
 }
 
 async function parseResponse(response: Response): Promise<PiyologDataFeedSnapshot> {
@@ -124,7 +124,7 @@ async function parseResponse(response: Response): Promise<PiyologDataFeedSnapsho
   try {
     payload = await response.json();
   } catch {
-    throw new PiyologDataFeedSourceError(
+    throw new PiyologDataFeedClientError(
       "invalid_json",
       "Piyolog data feed response was not valid JSON",
     );
@@ -140,7 +140,7 @@ function validateUrl(url: string): void {
       throw new Error("unsupported protocol");
     }
   } catch {
-    throw new PiyologDataFeedSourceError(
+    throw new PiyologDataFeedClientError(
       "invalid_configuration",
       "Piyolog data feed URL is invalid",
     );

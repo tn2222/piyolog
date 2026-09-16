@@ -2,11 +2,11 @@ import type {
   PiyologDataFeedApplyResult,
   PiyologDataFeedProjection,
   PiyologDataFeedSnapshot,
-  PiyologDataFeedSource,
+  PiyologDataFeedClient,
 } from "../domain/piyologDataFeed";
 
 export type PiyologDataFeedUpdateDependencies = {
-  source: PiyologDataFeedSource;
+  client: PiyologDataFeedClient;
   projection: PiyologDataFeedProjection;
 };
 
@@ -15,6 +15,6 @@ export type PiyologDataFeedUpdateResult = PiyologDataFeedApplyResult;
 export async function updatePiyologDataFeed(
   dependencies: PiyologDataFeedUpdateDependencies,
 ): Promise<PiyologDataFeedUpdateResult> {
-  const snapshot: PiyologDataFeedSnapshot = await dependencies.source.getDataFeed();
+  const snapshot: PiyologDataFeedSnapshot = await dependencies.client.getDataFeed();
   return dependencies.projection.apply(snapshot);
 }
