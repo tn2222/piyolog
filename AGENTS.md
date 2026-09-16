@@ -1,30 +1,62 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## 開発方針
 
-This repository contains a TypeScript Cloudflare Worker that ingests Piyolog text exports and stores normalized events in TiDB Cloud Serverless. Worker source lives in `src/`: `index.ts` routes requests, `handler.ts` validates and processes API input, `piyologText.ts` parses exports, and `repository.ts` handles persistence. Tests live in `test/` and mirror the source modules. Database DDL is kept in `migrations/`. Google Apps Script integration code and setup notes live in `apps-script/`. Local Mac formula reminder utilities are in `scripts/`.
+- 説明は日本語で、結論から簡潔に書く。確認した事実と提案を区別する。
+- 合意した要件を満たす最小の変更にする。将来のためだけの抽象化や互換APIは追加しない。
+- 設計判断は [docs/decisions/](docs/decisions/) を参照する。
 
-## Build, Test, and Development Commands
+## 構成と責務
 
-- `npm install`: install Node dependencies. Use Node 22 or newer (`.node-version` is present).
-- `npm run dev`: start the Worker locally with Wrangler.
-- `npm test`: run the Vitest suite once.
-- `npm run typecheck`: run TypeScript with `tsc --noEmit`.
-- `npm run deploy`: deploy the Worker with Wrangler.
-- `npm run notify:formula -- --dry-run`: test formula reminder logic without sending a notification.
+TypeScriptのCloudflare Workerでぴよログを取り込み、TiDBへ保存する。
 
-## Coding Style & Naming Conventions
+- `src/index.ts`: HTTPとCronの入口、依存関係の組み立て。
+- `src/controller/`: HTTP入力と外部サービスのプロトコルを扱う。
+- `src/application/`: UseCase。処理順序とトランザクション範囲を決める。
+- `src/domain/`: 型、ルール、外部依存のインターフェース。
+- `src/infrastructure/externalService/`: 外部APIのClient。
+- `src/infrastructure/repository/`: Repository。渡された接続でSQLを実行する。
+- `src/infrastructure/queryService/`: 参照と集計のSQL。
+- `src/infrastructure/transaction/`: DBの開始、commit、rollbackとトランザクション用Repositoryの生成。
+- `src/handler.ts` と `src/piyologText.ts`: 既存の取り込み処理とテキスト解析。`src/repository.ts` はRepositoryの再エクスポート。
+- `test/`: Vitestのテスト。`migrations/`: DDL。`apps-script/`: Google Apps Script。`scripts/`: Mac通知。
 
-Use TypeScript ES modules with strict typing. Keep imports explicit and prefer named exports for testable helpers. Match the existing style: two-space indentation, double quotes, trailing commas in multiline calls and objects, and concise pure functions where possible. Use `camelCase` for variables/functions, `PascalCase` for types, and descriptive filenames such as `piyologText.ts` or `repository.test.ts`.
+トランザクションはUseCaseの `transaction.run(...)` で範囲を定める。
+Repository自身は開始、commit、rollbackしない。
+公開フィードのHTTP取得はトランザクションの外で行い、範囲のDELETEとUPSERTを同じトランザクションに含める。
 
-## Testing Guidelines
+## データの分離
 
-Vitest is the test framework. Place tests in `test/` with `*.test.ts` filenames and use `describe`/`it` blocks with behavior-focused names, for example `it("extracts every timestamped row as a Japanese event", ...)`. Add or update tests when changing parsing behavior, request validation, repository contracts, or Worker responses. Run `npm test` and `npm run typecheck` before handing off changes.
+GrafanaとMac通知は公開フィード由来の `piyolog_feed_events` を使う。
+LLMはメモや日記を含む既存の `piyolog_events` と `piyolog_diaries` を使う。
+取り込み仕様は [docs/ingestion.md](docs/ingestion.md) を参照する。
 
-## Commit & Pull Request Guidelines
+## 開発と検証
 
-Recent history uses short imperative messages, sometimes with Conventional Commit prefixes such as `feat:` and `fix:`. Keep commits focused, for example `feat: normalize piyolog events` or `fix: replace normalized events by date`. Pull requests should include a brief summary, linked issue if applicable, test results, and any deployment, migration, or configuration notes. Include screenshots only for Apps Script or Grafana-facing UI changes.
+Node.jsは `.node-version` に合わせる。
 
-## Security & Configuration Tips
+- `npm install`: 依存関係をインストール。
+- `npm run dev`: ローカルWorkerを起動。
+- `npm test`: Vitestを実行。
+- `npm run typecheck`: TypeScriptの型チェック。
+- `npm run deploy -- --dry-run`: デプロイせずにWorkerをビルド。
+- `npm run notify:formula -- --dry-run`: TiDBを参照して通知判定を確認。通知は送信しない。
 
-Do not commit secrets. Use `.dev.vars` for local Worker secrets and `.env` for local notifier settings; keep `.dev.vars.example` as the template. Production secrets should be set with `npx wrangler secret put INGEST_TOKEN` and `npx wrangler secret put DATABASE_URL`.
+TypeScriptはstrict、ES modules、2スペース、ダブルクォートを使う。
+複数行の配列やオブジェクトは末尾カンマを付け、テスト対象のヘルパーはnamed exportを使う。
+変数と関数はcamelCase、型とクラスはPascalCaseとし、既存の命名に揃える。
+コード変更時は `npm test` と `npm run typecheck` を実行する。
+解析、入力検証、Repository契約、Workerの応答を変えた場合は、対応する振る舞いのテストを更新する。
+文書だけの変更ではリンクと `git diff --check` を確認する。
+ローカルWorkerの動作確認には [.agents/skills/verify-piyolog/SKILL.md](.agents/skills/verify-piyolog/SKILL.md) を参照する。
+
+## PRと運用
+
+コミットは変更目的ごとに分け、PRには目的、変更内容、検証結果、必要なマイグレーションや設定を書く。
+`main` へのpushはデプロイを起動するため、PRの更新と区別する。
+デプロイ手順は [docs/deployment.md](docs/deployment.md) を参照する。
+
+秘密情報と実データをコミットしない。公開フィードURLは認証情報なのでログにも出さない。
+ローカルWorkerは `.dev.vars`、Mac通知は `.env` を使い、設定項目は `.dev.vars.example` に反映する。
+本番のWorker secretsはCloudflare Secrets Storeで管理する。
+詳細は [docs/security.md](docs/security.md) を参照する。
