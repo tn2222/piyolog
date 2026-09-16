@@ -1,6 +1,6 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
-import { refreshPiyologDataFeed } from "./application/refreshPiyologDataFeedUseCase";
+import { updatePiyologDataFeed } from "./application/updatePiyologDataFeedUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
 import { handleMcpRequest } from "./controller/mcpController";
 import { handleSlackCommandRequest } from "./controller/slackController";
@@ -121,7 +121,7 @@ export default {
   ): Promise<void> {
     try {
       const feedEnv = await resolvePiyologDataFeedSecrets(env);
-      const result = await refreshPiyologDataFeed({
+      const result = await updatePiyologDataFeed({
         source: createPiyologDataFeedSource({ url: feedEnv.PIYOLOG_FEED_URL }),
         projection: createTiDBPiyologDataFeedProjection(feedEnv.DATABASE_URL),
       });

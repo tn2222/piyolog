@@ -5,16 +5,16 @@ import type {
   PiyologDataFeedSource,
 } from "../domain/piyologDataFeed";
 
-export type PiyologDataFeedRefreshDependencies = {
+export type PiyologDataFeedUpdateDependencies = {
   source: PiyologDataFeedSource;
   projection: PiyologDataFeedProjection;
 };
 
-export type PiyologDataFeedRefreshResult = PiyologDataFeedApplyResult;
+export type PiyologDataFeedUpdateResult = PiyologDataFeedApplyResult;
 
-export async function refreshPiyologDataFeed(
-  dependencies: PiyologDataFeedRefreshDependencies,
-): Promise<PiyologDataFeedRefreshResult> {
+export async function updatePiyologDataFeed(
+  dependencies: PiyologDataFeedUpdateDependencies,
+): Promise<PiyologDataFeedUpdateResult> {
   const snapshot: PiyologDataFeedSnapshot = await dependencies.source.getDataFeed();
   return dependencies.projection.apply(snapshot);
 }

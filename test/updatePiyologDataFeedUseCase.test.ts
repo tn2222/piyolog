@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
-import { refreshPiyologDataFeed } from "../src/application/refreshPiyologDataFeedUseCase";
+import { updatePiyologDataFeed } from "../src/application/updatePiyologDataFeedUseCase";
 
-describe("refreshPiyologDataFeed", () => {
+describe("updatePiyologDataFeed", () => {
   it("passes the fetched snapshot to the projection and returns its status", async () => {
     const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
@@ -24,7 +24,7 @@ describe("refreshPiyologDataFeed", () => {
       })),
     };
 
-    await expect(refreshPiyologDataFeed({ source, projection })).resolves.toEqual({
+    await expect(updatePiyologDataFeed({ source, projection })).resolves.toEqual({
       generatedAt: snapshot.generatedAt,
       range: snapshot.range,
       recordCount: 0,
@@ -41,7 +41,7 @@ describe("refreshPiyologDataFeed", () => {
     };
     const projection = { apply: vi.fn() };
 
-    await expect(refreshPiyologDataFeed({ source, projection })).rejects.toThrow("feed unavailable");
+    await expect(updatePiyologDataFeed({ source, projection })).rejects.toThrow("feed unavailable");
     expect(projection.apply).not.toHaveBeenCalled();
   });
 });
