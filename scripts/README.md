@@ -1,6 +1,6 @@
 # Macのミルク時間通知
 
-Macから5分ごとにTiDBを確認し、次回ミルク予定の35分前以内になったらmacOSの通知と音声で知らせます。
+Macから5分ごとにTiDBの `piyolog_feed_events` を確認し、次回ミルク予定の35分前以内になったらmacOSの通知と音声で知らせます。
 
 ```text
 最後のミルク時刻 + 3時間 = 次回ミルク予定
@@ -27,7 +27,7 @@ TiDBの接続文字列を `.env` に設定します。
 cp .dev.vars.example .env
 ```
 
-`.env` の `DATABASE_URL` をTiDB Cloudの接続文字列に置き換えます。`INGEST_TOKEN` はWorker用なので、Mac通知だけなら未設定でも動きます。
+`.env` の `DATABASE_URL` をTiDB Cloudの接続文字列に置き換えます。`INGEST_TOKEN` と `PIYOLOG_FEED_URL` はWorker用なので、Mac通知だけなら未設定でも動きます。
 
 ```sh
 DATABASE_URL=mysql://user:password@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/test?sslaccept=strict

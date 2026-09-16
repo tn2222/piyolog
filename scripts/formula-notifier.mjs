@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { normalizeDatabaseDateTime } from "./formula-notifier-time.mjs";
 
 const DEFAULT_STATE_FILE = join(
   homedir(),
@@ -36,11 +37,11 @@ SELECT
   DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR) AS next_formula_at,
   TIMESTAMPDIFF(
     MINUTE,
-    DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR),
+    UTC_TIMESTAMP(),
     DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR)
   ) AS minutes_until_next_formula
-FROM piyolog_events
-WHERE event_type = 'ミルク'
+FROM piyolog_feed_events
+WHERE event_type = 'Formula'
 `.trim());
 
 const row = result.rows?.[0];
@@ -49,7 +50,7 @@ if (!row?.next_formula_at) {
   process.exit(0);
 }
 
-const nextFormulaAt = normalizeDateTime(row.next_formula_at);
+const nextFormulaAt = normalizeDatabaseDateTime(row.next_formula_at);
 const minutesUntilNextFormula = Number(row.minutes_until_next_formula);
 
 if (!Number.isFinite(minutesUntilNextFormula)) {
@@ -146,24 +147,6 @@ function parsePositiveInteger(value, fallback) {
   }
 
   return parsed;
-}
-
-function normalizeDateTime(value) {
-  if (value instanceof Date) {
-    return formatDateTimeParts(value);
-  }
-
-  return String(value).replace("T", " ").slice(0, 19);
-}
-
-function formatDateTimeParts(value) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  const hour = String(value.getHours()).padStart(2, "0");
-  const minute = String(value.getMinutes()).padStart(2, "0");
-  const second = String(value.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function formatForMessage(value) {

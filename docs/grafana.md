@@ -1,27 +1,31 @@
 # Grafana Cloud
 
-Grafana Cloud から、`piyolog_events` が入っているTiDB Cloud Serverlessのデータベースを参照します。
+Grafana Cloud から、`piyolog_feed_events` が入っているTiDB Cloud Serverlessのデータベースを参照します。
 
-Workerはraw textを保存したあと、時刻付きの記録行を `piyolog_events` に展開して保存します。Grafanaではこのテーブルに対してSQLを書きます。
+Workerはぴよログ公開フィードを5分ごとに取得し、`piyolog_feed_events` に保存します。フィードの日時はUTCなので、日別集計ではAsia/Tokyoへ変換します。LLMは従来どおり `piyolog_events` と `piyolog_diaries` を参照します。
 
 ## 次回ミルク予定時刻
 
 ```sql
 SELECT
-  DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR) AS next_formula_at
-FROM piyolog_events
-WHERE event_type = 'ミルク';
+  CONVERT_TZ(
+    DATE_ADD(MAX(occurred_at), INTERVAL 3 HOUR),
+    '+00:00',
+    '+09:00'
+  ) AS next_formula_at
+FROM piyolog_feed_events
+WHERE event_type = 'Formula';
 ```
 
 ## 日別ミルク量
 
 ```sql
 SELECT
-  event_date,
+  DATE(CONVERT_TZ(occurred_at, '+00:00', '+09:00')) AS event_date,
   COUNT(*) AS formula_count,
   SUM(amount_value) AS total_ml
-FROM piyolog_events
-WHERE event_type = 'ミルク'
-GROUP BY event_date
+FROM piyolog_feed_events
+WHERE event_type = 'Formula'
+GROUP BY DATE(CONVERT_TZ(occurred_at, '+00:00', '+09:00'))
 ORDER BY event_date;
 ```
