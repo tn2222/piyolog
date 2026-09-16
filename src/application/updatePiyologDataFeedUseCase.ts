@@ -4,14 +4,11 @@ import type {
   UtcTimestamp,
   PiyologDataFeedClient,
 } from "../domain/piyologDataFeed";
-
-export type PiyologDataFeedTransaction = {
-  run(work: (repository: PiyologDataFeedRepository) => Promise<void>): Promise<void>;
-};
+import type { DatabaseTransactionInterface } from "./databaseTransaction";
 
 export type PiyologDataFeedUpdateDependencies = {
   client: PiyologDataFeedClient;
-  transaction: PiyologDataFeedTransaction;
+  transaction: DatabaseTransactionInterface<PiyologDataFeedRepository>;
 };
 
 export type PiyologDataFeedUpdateResult = {

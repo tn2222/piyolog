@@ -4,13 +4,10 @@ import type {
   PiyologDataFeedSnapshot,
 } from "../../domain/piyologDataFeed";
 import { toTiDBDateTime } from "../../domain/piyologDataFeed";
-
-export type PiyologDataFeedConnection = {
-  execute(sql: string, params?: unknown[]): Promise<unknown>;
-};
+import type { DatabaseConnection } from "../databaseConnection";
 
 export class TiDBPiyologDataFeedRepository implements PiyologDataFeedRepository {
-  constructor(private readonly connection: PiyologDataFeedConnection) {}
+  constructor(private readonly connection: DatabaseConnection) {}
 
   async replaceRange(snapshot: PiyologDataFeedSnapshot): Promise<void> {
     await this.connection.execute(

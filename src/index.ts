@@ -1,3 +1,4 @@
+import { connect } from "@tidbcloud/serverless";
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
 import { updatePiyologDataFeed } from "./application/updatePiyologDataFeedUseCase";
@@ -9,7 +10,8 @@ import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewa
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
 import { createPiyologDataFeedClient } from "./infrastructure/externalService/piyologDataFeedClient";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
-import { createTiDBPiyologDataFeedTransaction } from "./infrastructure/transaction/tidbPiyologDataFeedTransaction";
+import { TiDBPiyologDataFeedRepository } from "./infrastructure/repository/tidbPiyologDataFeedRepository";
+import { DatabaseTransaction } from "./infrastructure/transaction/databaseTransaction";
 import { createTiDBPiyologRepository } from "./repository";
 import { resolvePiyologDataFeedSecrets, resolveSecrets } from "./secrets";
 import type { Env } from "./types";
@@ -123,7 +125,10 @@ export default {
       const feedEnv = await resolvePiyologDataFeedSecrets(env);
       const result = await updatePiyologDataFeed({
         client: createPiyologDataFeedClient({ url: feedEnv.PIYOLOG_FEED_URL }),
-        transaction: createTiDBPiyologDataFeedTransaction(feedEnv.DATABASE_URL),
+        transaction: new DatabaseTransaction(
+          connect({ url: feedEnv.DATABASE_URL, fullResult: true }),
+          TiDBPiyologDataFeedRepository,
+        ),
       });
 
       console.log("Piyolog data feed refresh completed", {

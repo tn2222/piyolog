@@ -1,6 +1,8 @@
+import type { DatabaseConnection } from "../src/infrastructure/databaseConnection";
 import { describe, expect, it, vi } from "vitest";
 import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
-import { TiDBPiyologDataFeedTransaction } from "../src/infrastructure/transaction/tidbPiyologDataFeedTransaction";
+import { TiDBPiyologDataFeedRepository } from "../src/infrastructure/repository/tidbPiyologDataFeedRepository";
+import { DatabaseTransaction } from "../src/infrastructure/transaction/databaseTransaction";
 
 const snapshot = parsePiyologDataFeedSnapshot({
   schema_version: 1,
@@ -16,10 +18,63 @@ function setup() {
     rollback: vi.fn(async () => ({})),
   };
   const connection = { begin: vi.fn(async () => tx), execute: vi.fn() };
-  return { tx, connection, transaction: new TiDBPiyologDataFeedTransaction(connection) };
+  const transaction = new DatabaseTransaction(connection, TiDBPiyologDataFeedRepository);
+  return { tx, connection, transaction };
 }
 
-describe("TiDBPiyologDataFeedTransaction", () => {
+describe("DatabaseTransaction", () => {
+  it("constructs a fresh repository for each transaction using the supplied class", async () => {
+    const { tx, connection } = setup();
+    const nextTx = {
+      execute: vi.fn(async (_sql: string) => ({})),
+      commit: vi.fn(async () => ({})),
+      rollback: vi.fn(async () => ({})),
+    };
+    connection.begin.mockResolvedValueOnce(tx).mockResolvedValueOnce(nextTx);
+    class EventRepository {
+      constructor(private readonly connection: DatabaseConnection) {}
+      async save(id: number): Promise<void> {
+        await this.connection.execute("INSERT INTO events VALUES (?)", [id]);
+      }
+    }
+    const transaction = new DatabaseTransaction(connection, EventRepository);
+    const repositories: EventRepository[] = [];
+
+    await transaction.run(async (repository) => {
+      repositories.push(repository);
+      await repository.save(1);
+    });
+    await transaction.run(async (repository) => {
+      repositories.push(repository);
+      await repository.save(2);
+    });
+
+    expect(repositories[0]).toBeInstanceOf(EventRepository);
+    expect(repositories[1]).not.toBe(repositories[0]);
+    expect(tx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [1]);
+    expect(nextTx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [2]);
+    expect(tx.commit).toHaveBeenCalledOnce();
+    expect(nextTx.commit).toHaveBeenCalledOnce();
+    expect(connection.execute).not.toHaveBeenCalled();
+  });
+
+  it("rolls back when repository construction fails", async () => {
+    const { tx, connection } = setup();
+    const error = new Error("constructor failed");
+    class FailingRepository {
+      constructor(_connection: DatabaseConnection) {
+        throw error;
+      }
+    }
+    const transaction = new DatabaseTransaction(connection, FailingRepository);
+    const work = vi.fn();
+
+    await expect(transaction.run(work)).rejects.toBe(error);
+    expect(work).not.toHaveBeenCalled();
+    expect(tx.commit).not.toHaveBeenCalled();
+    expect(tx.rollback).toHaveBeenCalledOnce();
+  });
+
   it("runs repository queries on the transaction connection and commits after the callback", async () => {
     const { tx, connection, transaction } = setup();
     await transaction.run(async (repository) => {
