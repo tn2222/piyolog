@@ -1,30 +1,30 @@
 import { connect } from "@tidbcloud/serverless";
 import type {
-  PiyologFeedRecord,
-  PiyologFeedApplyResult,
-  PiyologFeedProjection,
-  PiyologFeedSnapshot,
-} from "../../domain/piyologFeed";
-import { toTiDBDateTime } from "../../domain/piyologFeed";
+  PiyologDataFeedRecord,
+  PiyologDataFeedApplyResult,
+  PiyologDataFeedProjection,
+  PiyologDataFeedSnapshot,
+} from "../../domain/piyologDataFeed";
+import { toTiDBDateTime } from "../../domain/piyologDataFeed";
 
 type TiDBQueryResult = {
   rows?: unknown[] | null;
 };
 
-export type PiyologFeedTransaction = {
+export type PiyologDataFeedTransaction = {
   execute(sql: string, params?: unknown[]): Promise<TiDBQueryResult>;
   commit(): Promise<unknown>;
   rollback(): Promise<unknown>;
 };
 
-export type PiyologFeedTransactionalConnection = {
-  begin(): Promise<PiyologFeedTransaction>;
+export type PiyologDataFeedTransactionalConnection = {
+  begin(): Promise<PiyologDataFeedTransaction>;
 };
 
-export class TiDBPiyologFeedProjection implements PiyologFeedProjection {
-  constructor(private readonly connection: PiyologFeedTransactionalConnection) {}
+export class TiDBPiyologDataFeedProjection implements PiyologDataFeedProjection {
+  constructor(private readonly connection: PiyologDataFeedTransactionalConnection) {}
 
-  async apply(snapshot: PiyologFeedSnapshot): Promise<PiyologFeedApplyResult> {
+  async apply(snapshot: PiyologDataFeedSnapshot): Promise<PiyologDataFeedApplyResult> {
     const transaction = await this.connection.begin();
 
     try {
@@ -89,15 +89,15 @@ ON DUPLICATE KEY UPDATE
   }
 }
 
-export function createTiDBPiyologFeedProjection(
+export function createTiDBPiyologDataFeedProjection(
   databaseUrl: string,
-): PiyologFeedProjection {
-  return new TiDBPiyologFeedProjection(
-    connect({ url: databaseUrl, fullResult: true }) as unknown as PiyologFeedTransactionalConnection,
+): PiyologDataFeedProjection {
+  return new TiDBPiyologDataFeedProjection(
+    connect({ url: databaseUrl, fullResult: true }) as unknown as PiyologDataFeedTransactionalConnection,
   );
 }
 
-function toEventParams(record: PiyologFeedRecord): unknown[] {
+function toEventParams(record: PiyologDataFeedRecord): unknown[] {
   return [
     record.eventId,
     toTiDBDateTime(record.datetime),

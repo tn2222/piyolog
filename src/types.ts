@@ -33,7 +33,7 @@ export type ResolvedEnv = {
   LINE_CHANNEL_ACCESS_TOKEN: string;
 };
 
-export type ResolvedPiyologFeedEnv = {
+export type ResolvedPiyologDataFeedEnv = {
   DATABASE_URL: string;
   PIYOLOG_FEED_URL: string;
 };

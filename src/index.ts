@@ -1,17 +1,17 @@
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
-import { refreshPiyologFeed } from "./application/refreshPiyologFeedUseCase";
+import { refreshPiyologDataFeed } from "./application/refreshPiyologDataFeedUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
 import { handleMcpRequest } from "./controller/mcpController";
 import { handleSlackCommandRequest } from "./controller/slackController";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewayClient";
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
-import { createPiyologFeedSource } from "./infrastructure/externalService/piyologFeedSource";
+import { createPiyologDataFeedSource } from "./infrastructure/externalService/piyologDataFeedSource";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
-import { createTiDBPiyologFeedProjection } from "./infrastructure/repository/tidbPiyologFeedProjection";
+import { createTiDBPiyologDataFeedProjection } from "./infrastructure/repository/tidbPiyologDataFeedProjection";
 import { createTiDBPiyologRepository } from "./repository";
-import { resolvePiyologFeedSecrets, resolveSecrets } from "./secrets";
+import { resolvePiyologDataFeedSecrets, resolveSecrets } from "./secrets";
 import type { Env } from "./types";
 
 export default {
@@ -120,20 +120,20 @@ export default {
     _ctx: ExecutionContext,
   ): Promise<void> {
     try {
-      const feedEnv = await resolvePiyologFeedSecrets(env);
-      const result = await refreshPiyologFeed({
-        source: createPiyologFeedSource({ url: feedEnv.PIYOLOG_FEED_URL }),
-        projection: createTiDBPiyologFeedProjection(feedEnv.DATABASE_URL),
+      const feedEnv = await resolvePiyologDataFeedSecrets(env);
+      const result = await refreshPiyologDataFeed({
+        source: createPiyologDataFeedSource({ url: feedEnv.PIYOLOG_FEED_URL }),
+        projection: createTiDBPiyologDataFeedProjection(feedEnv.DATABASE_URL),
       });
 
-      console.log("Piyolog feed refresh completed", {
+      console.log("Piyolog data feed refresh completed", {
         generatedAt: result.generatedAt,
         rangeFrom: result.range.from,
         rangeTo: result.range.to,
         recordCount: result.recordCount,
       });
     } catch (error) {
-      console.error("Piyolog feed refresh failed", summarizeFeedError(error));
+      console.error("Piyolog data feed refresh failed", summarizeFeedError(error));
       throw error;
     }
   },

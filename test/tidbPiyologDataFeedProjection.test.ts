@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { parsePiyologFeedSnapshot } from "../src/domain/piyologFeed";
-import { TiDBPiyologFeedProjection } from "../src/infrastructure/repository/tidbPiyologFeedProjection";
+import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
+import { TiDBPiyologDataFeedProjection } from "../src/infrastructure/repository/tidbPiyologDataFeedProjection";
 
-describe("TiDBPiyologFeedProjection", () => {
+describe("TiDBPiyologDataFeedProjection", () => {
   it("deletes the half-open range and bulk upserts the snapshot in one transaction", async () => {
     const transaction = createTransaction();
-    const projection = new TiDBPiyologFeedProjection({
+    const projection = new TiDBPiyologDataFeedProjection({
       begin: vi.fn(async () => transaction),
     });
     const snapshot = snapshotWithRecords();
@@ -64,10 +64,10 @@ describe("TiDBPiyologFeedProjection", () => {
 
   it("applies an empty snapshot as a range clear", async () => {
     const transaction = createTransaction();
-    const projection = new TiDBPiyologFeedProjection({
+    const projection = new TiDBPiyologDataFeedProjection({
       begin: vi.fn(async () => transaction),
     });
-    const snapshot = parsePiyologFeedSnapshot({
+    const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -87,10 +87,10 @@ describe("TiDBPiyologFeedProjection", () => {
 
   it("chunks large snapshots inside the same transaction", async () => {
     const transaction = createTransaction();
-    const projection = new TiDBPiyologFeedProjection({
+    const projection = new TiDBPiyologDataFeedProjection({
       begin: vi.fn(async () => transaction),
     });
-    const snapshot = parsePiyologFeedSnapshot({
+    const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
       generated_at: "2026-09-16T02:00:00.000Z",
       range: {
@@ -116,7 +116,7 @@ describe("TiDBPiyologFeedProjection", () => {
   it("rolls back and rethrows mutation errors", async () => {
     const transaction = createTransaction();
     transaction.execute.mockRejectedValueOnce(new Error("delete failed"));
-    const projection = new TiDBPiyologFeedProjection({
+    const projection = new TiDBPiyologDataFeedProjection({
       begin: vi.fn(async () => transaction),
     });
 
@@ -128,7 +128,7 @@ describe("TiDBPiyologFeedProjection", () => {
   it("rolls back when commit fails", async () => {
     const transaction = createTransaction();
     transaction.commit.mockRejectedValueOnce(new Error("commit failed"));
-    const projection = new TiDBPiyologFeedProjection({
+    const projection = new TiDBPiyologDataFeedProjection({
       begin: vi.fn(async () => transaction),
     });
 
@@ -147,7 +147,7 @@ function createTransaction() {
 }
 
 function snapshotWithRecords() {
-  return parsePiyologFeedSnapshot({
+  return parsePiyologDataFeedSnapshot({
     schema_version: 1,
     generated_at: "2026-09-16T01:00:00.000Z",
     range: {

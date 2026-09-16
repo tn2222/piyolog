@@ -1,7 +1,7 @@
 import type {
   Env,
   ResolvedEnv,
-  ResolvedPiyologFeedEnv,
+  ResolvedPiyologDataFeedEnv,
   SecretValue,
 } from "./types";
 
@@ -35,9 +35,9 @@ export async function resolveSecrets(env: Env): Promise<ResolvedEnv> {
   };
 }
 
-export async function resolvePiyologFeedSecrets(
+export async function resolvePiyologDataFeedSecrets(
   env: Pick<Env, "DATABASE_URL" | "PIYOLOG_FEED_URL">,
-): Promise<ResolvedPiyologFeedEnv> {
+): Promise<ResolvedPiyologDataFeedEnv> {
   if (env.PIYOLOG_FEED_URL === undefined) {
     throw new Error("PIYOLOG_FEED_URL is not configured");
   }

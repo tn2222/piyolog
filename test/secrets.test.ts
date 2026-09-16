@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePiyologFeedSecrets, resolveSecrets } from "../src/secrets";
+import { resolvePiyologDataFeedSecrets, resolveSecrets } from "../src/secrets";
 import type { Env } from "../src/types";
 
 describe("resolveSecrets", () => {
@@ -49,7 +49,7 @@ describe("resolveSecrets", () => {
 
   it("resolves only the database and feed URL for scheduled sync", async () => {
     await expect(
-      resolvePiyologFeedSecrets({
+      resolvePiyologDataFeedSecrets({
         DATABASE_URL: secretBinding("mysql://store"),
         PIYOLOG_FEED_URL: secretBinding("https://feed.example/secret"),
       }),
@@ -61,7 +61,7 @@ describe("resolveSecrets", () => {
 
   it("fails scheduled sync configuration without a feed URL", async () => {
     await expect(
-      resolvePiyologFeedSecrets({ DATABASE_URL: "mysql://local" }),
+      resolvePiyologDataFeedSecrets({ DATABASE_URL: "mysql://local" }),
     ).rejects.toThrow("PIYOLOG_FEED_URL is not configured");
   });
 });

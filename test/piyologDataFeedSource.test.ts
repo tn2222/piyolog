@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  HttpPiyologFeedSource,
-  PiyologFeedSourceError,
-} from "../src/infrastructure/externalService/piyologFeedSource";
-import { PiyologFeedValidationError } from "../src/domain/piyologFeed";
+  HttpPiyologDataFeedSource,
+  PiyologDataFeedSourceError,
+} from "../src/infrastructure/externalService/piyologDataFeedSource";
+import { PiyologDataFeedValidationError } from "../src/domain/piyologDataFeed";
 
 const url = "https://feed.piyolog.com/v1/feed/24h/feed-id/feed-secret";
 
-describe("HttpPiyologFeedSource", () => {
+describe("HttpPiyologDataFeedSource", () => {
   it("fetches and validates a snapshot", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(validPayload())));
-    const source = new HttpPiyologFeedSource({
+    const source = new HttpPiyologDataFeedSource({
       url,
       fetch: fetchMock,
     });
@@ -35,7 +35,7 @@ describe("HttpPiyologFeedSource", () => {
       .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(validPayload())));
     const sleepMock = vi.fn(async () => {});
-    const source = new HttpPiyologFeedSource({
+    const source = new HttpPiyologDataFeedSource({
       url,
       fetch: fetchMock,
       sleep: sleepMock,
@@ -55,7 +55,7 @@ describe("HttpPiyologFeedSource", () => {
       .mockRejectedValueOnce(new Error("network down"))
       .mockResolvedValueOnce(new Response(JSON.stringify(validPayload())));
     const sleepMock = vi.fn(async () => {});
-    const source = new HttpPiyologFeedSource({
+    const source = new HttpPiyologDataFeedSource({
       url,
       fetch: fetchMock,
       sleep: sleepMock,
@@ -73,10 +73,10 @@ describe("HttpPiyologFeedSource", () => {
   it("does not retry non-retryable HTTP errors", async () => {
     const fetchMock = vi.fn(async () => new Response("missing", { status: 404 }));
     const sleepMock = vi.fn(async () => {});
-    const source = new HttpPiyologFeedSource({ url, fetch: fetchMock, sleep: sleepMock });
+    const source = new HttpPiyologDataFeedSource({ url, fetch: fetchMock, sleep: sleepMock });
 
     await expect(source.getSnapshot()).rejects.toMatchObject({
-      name: "PiyologFeedSourceError",
+      name: "PiyologDataFeedSourceError",
       code: "http_error",
       status: 404,
     });
@@ -88,26 +88,26 @@ describe("HttpPiyologFeedSource", () => {
     const fetchMock = vi.fn(async () => {
       throw new Error(`request failed for ${url}`);
     });
-    const source = new HttpPiyologFeedSource({ url, fetch: fetchMock, maxAttempts: 1 });
+    const source = new HttpPiyologDataFeedSource({ url, fetch: fetchMock, maxAttempts: 1 });
 
     const error = await source.getSnapshot().catch((value: unknown) => value);
-    expect(error).toBeInstanceOf(PiyologFeedSourceError);
+    expect(error).toBeInstanceOf(PiyologDataFeedSourceError);
     expect(String(error)).not.toContain(url);
   });
 
   it("rejects malformed JSON and invalid snapshots", async () => {
-    const invalidJsonSource = new HttpPiyologFeedSource({
+    const invalidJsonSource = new HttpPiyologDataFeedSource({
       url,
       fetch: vi.fn(async () => new Response("{")),
     });
     await expect(invalidJsonSource.getSnapshot()).rejects.toMatchObject({ code: "invalid_json" });
 
-    const invalidSnapshotSource = new HttpPiyologFeedSource({
+    const invalidSnapshotSource = new HttpPiyologDataFeedSource({
       url,
       fetch: vi.fn(async () => new Response(JSON.stringify({ schema_version: 2 }))),
     });
     await expect(invalidSnapshotSource.getSnapshot()).rejects.toBeInstanceOf(
-      PiyologFeedValidationError,
+      PiyologDataFeedValidationError,
     );
   });
 });

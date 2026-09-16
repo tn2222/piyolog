@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { parsePiyologFeedSnapshot } from "../src/domain/piyologFeed";
-import { refreshPiyologFeed } from "../src/application/refreshPiyologFeedUseCase";
+import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
+import { refreshPiyologDataFeed } from "../src/application/refreshPiyologDataFeedUseCase";
 
-describe("refreshPiyologFeed", () => {
+describe("refreshPiyologDataFeed", () => {
   it("passes the fetched snapshot to the projection and returns its status", async () => {
-    const snapshot = parsePiyologFeedSnapshot({
+    const snapshot = parsePiyologDataFeedSnapshot({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -24,7 +24,7 @@ describe("refreshPiyologFeed", () => {
       })),
     };
 
-    await expect(refreshPiyologFeed({ source, projection })).resolves.toEqual({
+    await expect(refreshPiyologDataFeed({ source, projection })).resolves.toEqual({
       generatedAt: snapshot.generatedAt,
       range: snapshot.range,
       recordCount: 0,
@@ -41,7 +41,7 @@ describe("refreshPiyologFeed", () => {
     };
     const projection = { apply: vi.fn() };
 
-    await expect(refreshPiyologFeed({ source, projection })).rejects.toThrow("feed unavailable");
+    await expect(refreshPiyologDataFeed({ source, projection })).rejects.toThrow("feed unavailable");
     expect(projection.apply).not.toHaveBeenCalled();
   });
 });

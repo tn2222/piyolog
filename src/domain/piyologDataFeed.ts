@@ -2,91 +2,91 @@ export type UtcTimestamp = string & {
   readonly __utcTimestamp: unique symbol;
 };
 
-export type PiyologFeedRange = {
+export type PiyologDataFeedRange = {
   from: UtcTimestamp;
   to: UtcTimestamp;
 };
 
-export type PiyologFeedValue = {
+export type PiyologDataFeedValue = {
   value: number | null;
   unit: string;
   left: number | null;
   right: number | null;
 };
 
-export type PiyologFeedDetails = {
+export type PiyologDataFeedDetails = {
   amount: string | null;
   hardness: string | null;
   color: string | null;
 };
 
-export type PiyologFeedRecord = {
+export type PiyologDataFeedRecord = {
   eventId: string;
   datetime: UtcTimestamp;
   type: string;
   last: string | null;
   leftTime: number | null;
   rightTime: number | null;
-  value: PiyologFeedValue | null;
-  details: PiyologFeedDetails | null;
+  value: PiyologDataFeedValue | null;
+  details: PiyologDataFeedDetails | null;
   rawRecord: Record<string, unknown>;
 };
 
-export type PiyologFeedSnapshot = {
+export type PiyologDataFeedSnapshot = {
   schemaVersion: 1;
   generatedAt: UtcTimestamp;
-  range: PiyologFeedRange;
-  records: PiyologFeedRecord[];
+  range: PiyologDataFeedRange;
+  records: PiyologDataFeedRecord[];
 };
 
-export type PiyologFeedSource = {
-  getSnapshot(): Promise<PiyologFeedSnapshot>;
+export type PiyologDataFeedSource = {
+  getSnapshot(): Promise<PiyologDataFeedSnapshot>;
 };
 
-export type PiyologFeedApplyResult = {
+export type PiyologDataFeedApplyResult = {
   generatedAt: UtcTimestamp;
-  range: PiyologFeedRange;
+  range: PiyologDataFeedRange;
   recordCount: number;
 };
 
-export type PiyologFeedProjection = {
-  apply(snapshot: PiyologFeedSnapshot): Promise<PiyologFeedApplyResult>;
+export type PiyologDataFeedProjection = {
+  apply(snapshot: PiyologDataFeedSnapshot): Promise<PiyologDataFeedApplyResult>;
 };
 
-export class PiyologFeedValidationError extends Error {
+export class PiyologDataFeedValidationError extends Error {
   readonly code = "invalid_feed";
 
   constructor(message: string) {
     super(message);
-    this.name = "PiyologFeedValidationError";
+    this.name = "PiyologDataFeedValidationError";
   }
 }
 
-export function parsePiyologFeedSnapshot(input: unknown): PiyologFeedSnapshot {
+export function parsePiyologDataFeedSnapshot(input: unknown): PiyologDataFeedSnapshot {
   const payload = requireRecord(input, "feed response");
   if (payload.schema_version !== 1) {
-    throw new PiyologFeedValidationError("Unsupported feed schema");
+    throw new PiyologDataFeedValidationError("Unsupported feed schema");
   }
 
   const generatedAt = parseUtcTimestamp(payload.generated_at, "generated_at");
   const range = parseRange(payload.range);
   if (range.to !== generatedAt) {
-    throw new PiyologFeedValidationError("generated_at must equal range.to");
+    throw new PiyologDataFeedValidationError("generated_at must equal range.to");
   }
 
   if (compareUtcTimestamps(range.from, range.to) >= 0) {
-    throw new PiyologFeedValidationError("range.from must be before range.to");
+    throw new PiyologDataFeedValidationError("range.from must be before range.to");
   }
 
   if (!Array.isArray(payload.records)) {
-    throw new PiyologFeedValidationError("records must be an array");
+    throw new PiyologDataFeedValidationError("records must be an array");
   }
 
   const eventIds = new Set<string>();
   const records = payload.records.map((record, index) => {
     const parsedRecord = parseRecord(record, index);
     if (eventIds.has(parsedRecord.eventId)) {
-      throw new PiyologFeedValidationError("event_id must be unique");
+      throw new PiyologDataFeedValidationError("event_id must be unique");
     }
     eventIds.add(parsedRecord.eventId);
 
@@ -94,7 +94,7 @@ export function parsePiyologFeedSnapshot(input: unknown): PiyologFeedSnapshot {
       compareUtcTimestamps(parsedRecord.datetime, range.from) < 0 ||
       compareUtcTimestamps(parsedRecord.datetime, range.to) >= 0
     ) {
-      throw new PiyologFeedValidationError("record datetime is outside the response range");
+      throw new PiyologDataFeedValidationError("record datetime is outside the response range");
     }
 
     return parsedRecord;
@@ -110,21 +110,21 @@ export function parsePiyologFeedSnapshot(input: unknown): PiyologFeedSnapshot {
 
 export function parseUtcTimestamp(input: unknown, fieldName: string): UtcTimestamp {
   if (typeof input !== "string") {
-    throw new PiyologFeedValidationError(`${fieldName} must be a UTC timestamp`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be a UTC timestamp`);
   }
 
   const match = input.match(
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?Z$/,
   );
   if (match === null) {
-    throw new PiyologFeedValidationError(`${fieldName} must be an ISO UTC timestamp`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be an ISO UTC timestamp`);
   }
 
   const fraction = (match[7] ?? "").slice(0, 3).padEnd(3, "0");
   const canonicalInput = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}.${fraction}Z`;
   const date = new Date(input);
   if (Number.isNaN(date.getTime()) || date.toISOString() !== canonicalInput) {
-    throw new PiyologFeedValidationError(`${fieldName} is not a valid UTC timestamp`);
+    throw new PiyologDataFeedValidationError(`${fieldName} is not a valid UTC timestamp`);
   }
 
   return date.toISOString() as UtcTimestamp;
@@ -144,7 +144,7 @@ export function toTiDBDateTime(value: UtcTimestamp): string {
   return `${value.slice(0, 10)} ${value.slice(11, 23)}`;
 }
 
-function parseRange(input: unknown): PiyologFeedRange {
+function parseRange(input: unknown): PiyologDataFeedRange {
   const range = requireRecord(input, "range");
   return {
     from: parseUtcTimestamp(range.from, "range.from"),
@@ -152,16 +152,16 @@ function parseRange(input: unknown): PiyologFeedRange {
   };
 }
 
-function parseRecord(input: unknown, index: number): PiyologFeedRecord {
+function parseRecord(input: unknown, index: number): PiyologDataFeedRecord {
   const record = requireRecord(input, `records[${index}]`);
   const eventId = record.event_id;
   if (typeof eventId !== "string" || eventId.length === 0) {
-    throw new PiyologFeedValidationError("event_id must be a non-empty string");
+    throw new PiyologDataFeedValidationError("event_id must be a non-empty string");
   }
 
   const type = record.type;
   if (typeof type !== "string" || type.length === 0) {
-    throw new PiyologFeedValidationError("type must be a non-empty string");
+    throw new PiyologDataFeedValidationError("type must be a non-empty string");
   }
 
   const value = parseValue(record.value, index);
@@ -183,7 +183,7 @@ function parseRecord(input: unknown, index: number): PiyologFeedRecord {
   };
 }
 
-function parseValue(input: unknown, index: number): PiyologFeedValue | null {
+function parseValue(input: unknown, index: number): PiyologDataFeedValue | null {
   if (input === undefined) {
     return null;
   }
@@ -197,7 +197,7 @@ function parseValue(input: unknown, index: number): PiyologFeedValue | null {
   };
 }
 
-function parseDetails(input: unknown, index: number): PiyologFeedDetails | null {
+function parseDetails(input: unknown, index: number): PiyologDataFeedDetails | null {
   if (input === undefined) {
     return null;
   }
@@ -215,14 +215,14 @@ function parseOptionalString(input: unknown, fieldName: string): string | null {
     return null;
   }
   if (typeof input !== "string" || input.length === 0) {
-    throw new PiyologFeedValidationError(`${fieldName} must be a non-empty string`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be a non-empty string`);
   }
   return input;
 }
 
 function parseRequiredString(input: unknown, fieldName: string): string {
   if (typeof input !== "string" || input.length === 0) {
-    throw new PiyologFeedValidationError(`${fieldName} must be a non-empty string`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be a non-empty string`);
   }
   return input;
 }
@@ -232,14 +232,14 @@ function parseOptionalPositiveNumber(input: unknown, fieldName: string): number 
     return null;
   }
   if (typeof input !== "number" || !Number.isFinite(input) || input <= 0) {
-    throw new PiyologFeedValidationError(`${fieldName} must be a positive number`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be a positive number`);
   }
   return input;
 }
 
 function requireRecord(input: unknown, fieldName: string): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    throw new PiyologFeedValidationError(`${fieldName} must be an object`);
+    throw new PiyologDataFeedValidationError(`${fieldName} must be an object`);
   }
   return input as Record<string, unknown>;
 }
