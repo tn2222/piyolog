@@ -39,7 +39,7 @@ migrations/004_create_piyolog_feed_tables.sql
 
 `piyolog_diaries` は、同じ `baby_nickname`, `baby_date_of_birth`, `entry_date` の日記を置き換えます。`journal` が空文字で送られた場合も空文字として更新し、ぴよログ側で日記を消した状態をDBへ反映します。
 
-`piyolog_feed_events` は公開フィードの `range.from <= occurred_at < range.to` を毎回削除してから、取得レコードを `event_id` でUPSERTします。取得範囲外の履歴は残し、正常な空配列は範囲内を削除します。`piyolog_feed_sync_state` の生成時刻より古いか同じレスポンスは適用しません。
+`piyolog_feed_events` は公開フィードの `range.from <= occurred_at < range.to` を毎回削除してから、取得レコードを `event_id` でUPSERTします。取得範囲外の履歴は残し、正常な空配列は範囲内を削除します。
 
 ## ローカル開発
 

@@ -44,7 +44,6 @@ export type PiyologFeedSource = {
 };
 
 export type PiyologFeedApplyResult = {
-  status: "applied" | "skipped";
   generatedAt: UtcTimestamp;
   range: PiyologFeedRange;
   recordCount: number;

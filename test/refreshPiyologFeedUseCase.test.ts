@@ -18,15 +18,16 @@ describe("refreshPiyologFeed", () => {
     };
     const projection = {
       apply: vi.fn(async () => ({
-        status: "applied" as const,
         generatedAt: snapshot.generatedAt,
         range: snapshot.range,
         recordCount: 0,
       })),
     };
 
-    await expect(refreshPiyologFeed({ source, projection })).resolves.toMatchObject({
-      status: "applied",
+    await expect(refreshPiyologFeed({ source, projection })).resolves.toEqual({
+      generatedAt: snapshot.generatedAt,
+      range: snapshot.range,
+      recordCount: 0,
     });
     expect(source.getSnapshot).toHaveBeenCalledOnce();
     expect(projection.apply).toHaveBeenCalledWith(snapshot);

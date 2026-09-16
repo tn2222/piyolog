@@ -127,7 +127,6 @@ export default {
       });
 
       console.log("Piyolog feed refresh completed", {
-        status: result.status,
         generatedAt: result.generatedAt,
         rangeFrom: result.range.from,
         rangeTo: result.range.to,

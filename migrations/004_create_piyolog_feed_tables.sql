@@ -16,14 +16,3 @@ CREATE TABLE IF NOT EXISTS piyolog_feed_events (
   INDEX idx_piyolog_feed_events_occurred_at (occurred_at),
   INDEX idx_piyolog_feed_events_type_occurred_at (event_type, occurred_at)
 );
-
-CREATE TABLE IF NOT EXISTS piyolog_feed_sync_state (
-  feed_key VARCHAR(64) PRIMARY KEY,
-  generated_at DATETIME(3),
-  range_from DATETIME(3),
-  range_to DATETIME(3),
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-INSERT IGNORE INTO piyolog_feed_sync_state (feed_key)
-VALUES ('default');

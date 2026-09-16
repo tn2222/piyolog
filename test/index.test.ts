@@ -677,12 +677,7 @@ describe("worker entrypoint", () => {
     const originalFetch = globalThis.fetch;
     const feedUrl = "https://feed.piyolog.com/v1/feed/24h/feed-id/feed-secret";
     const transaction = {
-      execute: vi.fn(async (sql: string) => {
-        if (sql.includes("SELECT generated_at")) {
-          return { rows: [{ generated_at: null }] };
-        }
-        return { rows: [] };
-      }),
+      execute: vi.fn(async (_sql: string) => ({ rows: [] })),
       commit: vi.fn(async () => ({})),
       rollback: vi.fn(async () => ({})),
     };
