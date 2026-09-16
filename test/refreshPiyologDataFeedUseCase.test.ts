@@ -14,7 +14,7 @@ describe("refreshPiyologDataFeed", () => {
       records: [],
     });
     const source = {
-      getSnapshot: vi.fn(async () => snapshot),
+      getDataFeed: vi.fn(async () => snapshot),
     };
     const projection = {
       apply: vi.fn(async () => ({
@@ -29,13 +29,13 @@ describe("refreshPiyologDataFeed", () => {
       range: snapshot.range,
       recordCount: 0,
     });
-    expect(source.getSnapshot).toHaveBeenCalledOnce();
+    expect(source.getDataFeed).toHaveBeenCalledOnce();
     expect(projection.apply).toHaveBeenCalledWith(snapshot);
   });
 
   it("does not call the projection when fetching fails", async () => {
     const source = {
-      getSnapshot: vi.fn(async () => {
+      getDataFeed: vi.fn(async () => {
         throw new Error("feed unavailable");
       }),
     };

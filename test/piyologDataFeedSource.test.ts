@@ -15,7 +15,7 @@ describe("HttpPiyologDataFeedSource", () => {
       fetch: fetchMock,
     });
 
-    await expect(source.getSnapshot()).resolves.toMatchObject({
+    await expect(source.getDataFeed()).resolves.toMatchObject({
       generatedAt: "2026-09-16T01:00:00.000Z",
       records: [{ eventId: "event-1" }],
     });
@@ -43,7 +43,7 @@ describe("HttpPiyologDataFeedSource", () => {
       maxAttempts: 3,
     });
 
-    await expect(source.getSnapshot()).resolves.toMatchObject({ records: [{ eventId: "event-1" }] });
+    await expect(source.getDataFeed()).resolves.toMatchObject({ records: [{ eventId: "event-1" }] });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(sleepMock).toHaveBeenNthCalledWith(1, 500);
     expect(sleepMock).toHaveBeenNthCalledWith(2, 1_000);
@@ -63,7 +63,7 @@ describe("HttpPiyologDataFeedSource", () => {
       maxAttempts: 2,
     });
 
-    await expect(source.getSnapshot()).resolves.toMatchObject({
+    await expect(source.getDataFeed()).resolves.toMatchObject({
       records: [{ eventId: "event-1" }],
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -75,7 +75,7 @@ describe("HttpPiyologDataFeedSource", () => {
     const sleepMock = vi.fn(async () => {});
     const source = new HttpPiyologDataFeedSource({ url, fetch: fetchMock, sleep: sleepMock });
 
-    await expect(source.getSnapshot()).rejects.toMatchObject({
+    await expect(source.getDataFeed()).rejects.toMatchObject({
       name: "PiyologDataFeedSourceError",
       code: "http_error",
       status: 404,
@@ -90,7 +90,7 @@ describe("HttpPiyologDataFeedSource", () => {
     });
     const source = new HttpPiyologDataFeedSource({ url, fetch: fetchMock, maxAttempts: 1 });
 
-    const error = await source.getSnapshot().catch((value: unknown) => value);
+    const error = await source.getDataFeed().catch((value: unknown) => value);
     expect(error).toBeInstanceOf(PiyologDataFeedSourceError);
     expect(String(error)).not.toContain(url);
   });
@@ -100,13 +100,13 @@ describe("HttpPiyologDataFeedSource", () => {
       url,
       fetch: vi.fn(async () => new Response("{")),
     });
-    await expect(invalidJsonSource.getSnapshot()).rejects.toMatchObject({ code: "invalid_json" });
+    await expect(invalidJsonSource.getDataFeed()).rejects.toMatchObject({ code: "invalid_json" });
 
     const invalidSnapshotSource = new HttpPiyologDataFeedSource({
       url,
       fetch: vi.fn(async () => new Response(JSON.stringify({ schema_version: 2 }))),
     });
-    await expect(invalidSnapshotSource.getSnapshot()).rejects.toBeInstanceOf(
+    await expect(invalidSnapshotSource.getDataFeed()).rejects.toBeInstanceOf(
       PiyologDataFeedValidationError,
     );
   });

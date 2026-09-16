@@ -40,7 +40,7 @@ export type PiyologDataFeedSnapshot = {
 };
 
 export type PiyologDataFeedSource = {
-  getSnapshot(): Promise<PiyologDataFeedSnapshot>;
+  getDataFeed(): Promise<PiyologDataFeedSnapshot>;
 };
 
 export type PiyologDataFeedApplyResult = {

@@ -15,6 +15,6 @@ export type PiyologDataFeedRefreshResult = PiyologDataFeedApplyResult;
 export async function refreshPiyologDataFeed(
   dependencies: PiyologDataFeedRefreshDependencies,
 ): Promise<PiyologDataFeedRefreshResult> {
-  const snapshot: PiyologDataFeedSnapshot = await dependencies.source.getSnapshot();
+  const snapshot: PiyologDataFeedSnapshot = await dependencies.source.getDataFeed();
   return dependencies.projection.apply(snapshot);
 }

@@ -61,7 +61,7 @@ export class HttpPiyologDataFeedSource implements PiyologDataFeedSource {
     }
   }
 
-  async getSnapshot(): Promise<PiyologDataFeedSnapshot> {
+  async getDataFeed(): Promise<PiyologDataFeedSnapshot> {
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       let response: Response;
       try {
