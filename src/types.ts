@@ -15,6 +15,7 @@ export type SecretsStoreSecretBinding = {
 export type Env = {
   INGEST_TOKEN: SecretValue;
   DATABASE_URL: SecretValue;
+  PIYOLOG_FEED_URL?: SecretValue;
   SLACK_COMMAND_TOKEN: SecretValue;
   PERSONAL_LLM_GATEWAY_URL: SecretValue;
   PERSONAL_LLM_GATEWAY_TOKEN: SecretValue;
@@ -30,6 +31,11 @@ export type ResolvedEnv = {
   PERSONAL_LLM_GATEWAY_TOKEN: string;
   LINE_CHANNEL_SECRET: string;
   LINE_CHANNEL_ACCESS_TOKEN: string;
+};
+
+export type ResolvedPiyologDataFeedEnv = {
+  DATABASE_URL: string;
+  PIYOLOG_FEED_URL: string;
 };
 
 export type PiyologEventInput = {

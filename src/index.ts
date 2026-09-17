@@ -1,14 +1,18 @@
+import { connect } from "@tidbcloud/serverless";
 import { askAssistant } from "./application/askAssistantUseCase";
 import { handleLineTextMessage } from "./application/handleLineTextMessageUseCase";
+import { updatePiyologDataFeed } from "./application/updatePiyologDataFeedUseCase";
 import { handleLineWebhookRequest } from "./controller/lineController";
 import { handleMcpRequest } from "./controller/mcpController";
 import { handleSlackCommandRequest } from "./controller/slackController";
 import { handleCustomActionCaptureRequest, handleTextRecordsRequest } from "./handler";
 import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewayClient";
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
+import { createPiyologDataFeedClient } from "./infrastructure/externalService/piyologDataFeedClient";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
+import { DatabaseTransaction } from "./infrastructure/transaction/databaseTransaction";
 import { createTiDBPiyologRepository } from "./repository";
-import { resolveSecrets } from "./secrets";
+import { resolvePiyologDataFeedSecrets, resolveSecrets } from "./secrets";
 import type { Env } from "./types";
 
 export default {
@@ -110,4 +114,60 @@ export default {
       createTiDBPiyologRepository(resolvedEnv.DATABASE_URL),
     );
   },
+
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    _ctx: ExecutionContext,
+  ): Promise<void> {
+    try {
+      const feedEnv = await resolvePiyologDataFeedSecrets(env);
+      const result = await updatePiyologDataFeed({
+        client: createPiyologDataFeedClient({ url: feedEnv.PIYOLOG_FEED_URL }),
+        transaction: new DatabaseTransaction(
+          connect({ url: feedEnv.DATABASE_URL, fullResult: true }),
+        ),
+      });
+
+      console.log("Piyolog data feed refresh completed", {
+        generatedAt: result.generatedAt,
+        rangeFrom: result.range.from,
+        rangeTo: result.range.to,
+        recordCount: result.recordCount,
+      });
+    } catch (error) {
+      console.error("Piyolog data feed refresh failed", summarizeFeedError(error));
+      throw error;
+    }
+  },
 };
+
+function summarizeFeedError(error: unknown): {
+  errorClass: string;
+  errorCode?: string;
+  httpStatus?: number;
+} {
+  const summary: {
+    errorClass: string;
+    errorCode?: string;
+    httpStatus?: number;
+  } = {
+    errorClass: error instanceof Error ? error.name : typeof error,
+  };
+
+  if (typeof error !== "object" || error === null) {
+    return summary;
+  }
+
+  const errorCode = "code" in error ? error.code : undefined;
+  if (typeof errorCode === "string") {
+    summary.errorCode = errorCode;
+  }
+
+  const httpStatus = "status" in error ? error.status : undefined;
+  if (typeof httpStatus === "number") {
+    summary.httpStatus = httpStatus;
+  }
+
+  return summary;
+}

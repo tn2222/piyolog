@@ -1,5 +1,6 @@
 INGEST_TOKEN=replace-with-a-long-random-token
 DATABASE_URL=mysql://user:password@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/test?sslaccept=strict
+PIYOLOG_FEED_URL=https://feed.piyolog.com/v1/feed/24h/replace-with-feed-id/replace-with-feed-secret
 SLACK_COMMAND_TOKEN=replace-with-slack-command-token
 PERSONAL_LLM_GATEWAY_URL=https://example.execute-api.ap-northeast-1.amazonaws.com
 PERSONAL_LLM_GATEWAY_TOKEN=replace-with-personal-llm-gateway-token

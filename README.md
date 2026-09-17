@@ -2,10 +2,11 @@
 
 ぴよログの記録を Cloudflare Workers 経由で TiDB Cloud Serverless に保存し、Grafana Cloud や AI Agent から参照するためのリポジトリです。
 
-主な取り込み経路は次の2つです。
+主な取り込み経路は次の3つです。
 
 - Google Apps Script から、ぴよログのテキストエクスポートを `piyolog_events` に保存する
 - ぴよログのカスタムアクションから、育児日記を `piyolog_diaries` に保存する
+- WorkerのCron Triggerから、ぴよログ公開フィードを `piyolog_feed_events` に保存する
 
 ## 構成
 

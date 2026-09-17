@@ -1,4 +1,9 @@
-import type { Env, ResolvedEnv, SecretValue } from "./types";
+import type {
+  Env,
+  ResolvedEnv,
+  ResolvedPiyologDataFeedEnv,
+  SecretValue,
+} from "./types";
 
 export async function resolveSecrets(env: Env): Promise<ResolvedEnv> {
   const [
@@ -27,6 +32,24 @@ export async function resolveSecrets(env: Env): Promise<ResolvedEnv> {
     PERSONAL_LLM_GATEWAY_TOKEN: personalLlmGatewayToken,
     LINE_CHANNEL_SECRET: lineChannelSecret,
     LINE_CHANNEL_ACCESS_TOKEN: lineChannelAccessToken,
+  };
+}
+
+export async function resolvePiyologDataFeedSecrets(
+  env: Pick<Env, "DATABASE_URL" | "PIYOLOG_FEED_URL">,
+): Promise<ResolvedPiyologDataFeedEnv> {
+  if (env.PIYOLOG_FEED_URL === undefined) {
+    throw new Error("PIYOLOG_FEED_URL is not configured");
+  }
+
+  const [databaseUrl, feedUrl] = await Promise.all([
+    resolveSecret(env.DATABASE_URL),
+    resolveSecret(env.PIYOLOG_FEED_URL),
+  ]);
+
+  return {
+    DATABASE_URL: databaseUrl,
+    PIYOLOG_FEED_URL: feedUrl,
   };
 }
 

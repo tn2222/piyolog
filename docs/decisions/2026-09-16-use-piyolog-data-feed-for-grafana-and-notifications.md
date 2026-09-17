@@ -26,6 +26,8 @@ GrafanaとMac通知のデータ源を公開フィードへ切り替え、API由�
 
 範囲外の履歴は残し、取得できた分から蓄積する。既存データは移行しない。正常な空配列は取得範囲内を削除し、取得・検証・DB更新の失敗時は既存データを保持する。
 
+公開フィードの `event_type` はAPIの英語コードのまま `piyolog_feed_events` に保存する。Grafanaの表示名は `piyolog_feed_event_type_labels` で変換し、未登録のコードも取得データとして扱えるよう外部キー制約は付けない。
+
 ## Consequences
 
 ### Positive
@@ -49,4 +51,4 @@ GrafanaとMac通知のデータ源を公開フィードへ切り替え、API由�
 - [ぴよログのデータフィード仕様](https://www.piyolog.com/app/piyolog/data_feed/ja/)
 - 5分ごとの取得は即時反映を保証しない。フィードのキャッシュによる遅延もある。
 - フィードURLは認証情報としてSecretで管理する。
-- 初回同期を確認してからGrafanaとMac通知の参照先を切り替える。現時点では実装前。
+- 初回同期を確認してからGrafanaとMac通知の参照先を切り替える。
