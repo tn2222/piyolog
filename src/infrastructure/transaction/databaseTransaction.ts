@@ -1,16 +1,16 @@
 import type { DatabaseConnection, TransactionalDatabaseConnection } from "../databaseConnection";
 
 export class DatabaseTransaction {
-  constructor(private readonly connection: TransactionalDatabaseConnection) {}
+  constructor(private readonly databaseConnection: TransactionalDatabaseConnection) {}
 
-  async run(work: (connection: DatabaseConnection) => Promise<void>): Promise<void> {
-    const transaction = await this.connection.begin();
+  async run(work: (transactionConnection: DatabaseConnection) => Promise<void>): Promise<void> {
+    const transactionConnection = await this.databaseConnection.begin();
     try {
-      await work(transaction);
-      await transaction.commit();
+      await work(transactionConnection);
+      await transactionConnection.commit();
     } catch (error) {
       try {
-        await transaction.rollback();
+        await transactionConnection.rollback();
       } catch {
       }
       throw error;

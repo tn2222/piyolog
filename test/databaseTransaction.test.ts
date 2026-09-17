@@ -18,9 +18,9 @@ function setup() {
 describe("DatabaseTransaction", () => {
   it("passes the connection from begin to the callback and commits after completion", async () => {
     const { tx, connection, transaction } = setup();
-    await transaction.run(async (activeConnection) => {
-      expect(activeConnection).toBe(tx);
-      await activeConnection.execute("INSERT INTO events VALUES (?)", [1]);
+    await transaction.run(async (transactionConnection) => {
+      expect(transactionConnection).toBe(tx);
+      await transactionConnection.execute("INSERT INTO events VALUES (?)", [1]);
       expect(tx.commit).not.toHaveBeenCalled();
     });
 
@@ -36,11 +36,11 @@ describe("DatabaseTransaction", () => {
     const nextTx = createTransactionConnection();
     connection.begin.mockResolvedValueOnce(tx).mockResolvedValueOnce(nextTx);
 
-    await transaction.run(async (activeConnection) => {
-      await activeConnection.execute("INSERT INTO events VALUES (?)", [1]);
+    await transaction.run(async (transactionConnection) => {
+      await transactionConnection.execute("INSERT INTO events VALUES (?)", [1]);
     });
-    await transaction.run(async (activeConnection) => {
-      await activeConnection.execute("INSERT INTO events VALUES (?)", [2]);
+    await transaction.run(async (transactionConnection) => {
+      await transactionConnection.execute("INSERT INTO events VALUES (?)", [2]);
     });
 
     expect(tx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [1]);
@@ -54,8 +54,8 @@ describe("DatabaseTransaction", () => {
     const error = new Error("insert failed");
     tx.execute.mockRejectedValueOnce(error);
 
-    await expect(transaction.run(async (connection) => {
-      await connection.execute("INSERT INTO events VALUES (?)", [1]);
+    await expect(transaction.run(async (transactionConnection) => {
+      await transactionConnection.execute("INSERT INTO events VALUES (?)", [1]);
     })).rejects.toBe(error);
     expect(tx.rollback).toHaveBeenCalledOnce();
     expect(tx.commit).not.toHaveBeenCalled();
@@ -64,8 +64,8 @@ describe("DatabaseTransaction", () => {
   it("rolls back callback failures even after SQL succeeds", async () => {
     const { tx, transaction } = setup();
     const error = new Error("callback failed");
-    await expect(transaction.run(async (connection) => {
-      await connection.execute("INSERT INTO events VALUES (?)", [1]);
+    await expect(transaction.run(async (transactionConnection) => {
+      await transactionConnection.execute("INSERT INTO events VALUES (?)", [1]);
       throw error;
     })).rejects.toBe(error);
     expect(tx.rollback).toHaveBeenCalledOnce();

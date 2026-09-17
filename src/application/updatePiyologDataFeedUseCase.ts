@@ -21,8 +21,8 @@ export async function updatePiyologDataFeed(
   dependencies: PiyologDataFeedUpdateDependencies,
 ): Promise<PiyologDataFeedUpdateResult> {
   const dataFeed = await dependencies.client.getDataFeed();
-  await dependencies.transaction.run(async (connection) => {
-    const repository = new TiDBPiyologDataFeedRepository(connection);
+  await dependencies.transaction.run(async (transactionConnection) => {
+    const repository = new TiDBPiyologDataFeedRepository(transactionConnection);
     await repository.replaceRange(dataFeed);
   });
   return {
