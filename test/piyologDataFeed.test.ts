@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  parsePiyologDataFeedSnapshot,
+  parsePiyologDataFeed,
   PiyologDataFeedValidationError,
 } from "../src/domain/piyologDataFeed";
 
@@ -10,9 +10,9 @@ const validRecord = {
   type: "Formula",
 };
 
-describe("parsePiyologDataFeedSnapshot", () => {
-  it("accepts an empty snapshot and canonicalizes UTC timestamps", () => {
-    const snapshot = parsePiyologDataFeedSnapshot({
+describe("parsePiyologDataFeed", () => {
+  it("accepts an empty data feed and canonicalizes UTC timestamps", () => {
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T05:18:54Z",
       range: {
@@ -22,7 +22,7 @@ describe("parsePiyologDataFeedSnapshot", () => {
       records: [],
     });
 
-    expect(snapshot).toEqual({
+    expect(dataFeed).toEqual({
       schemaVersion: 1,
       generatedAt: "2026-09-16T05:18:54.000Z",
       range: {
@@ -34,7 +34,7 @@ describe("parsePiyologDataFeedSnapshot", () => {
   });
 
   it("includes range.from and excludes range.to", () => {
-    const snapshot = parsePiyologDataFeedSnapshot({
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -46,9 +46,9 @@ describe("parsePiyologDataFeedSnapshot", () => {
       ],
     });
 
-    expect(snapshot.records[0]?.eventId).toBe("at-start");
+    expect(dataFeed.records[0]?.eventId).toBe("at-start");
     expect(() =>
-      parsePiyologDataFeedSnapshot({
+      parsePiyologDataFeed({
         schema_version: 1,
         generated_at: "2026-09-16T01:00:00.000Z",
         range: {
@@ -69,7 +69,7 @@ describe("parsePiyologDataFeedSnapshot", () => {
       type: "NewType",
       custom: { keep: true },
     };
-    const snapshot = parsePiyologDataFeedSnapshot({
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -101,29 +101,29 @@ describe("parsePiyologDataFeedSnapshot", () => {
       ],
     });
 
-    expect(snapshot.records[0]).toMatchObject({
+    expect(dataFeed.records[0]).toMatchObject({
       last: "right",
       leftTime: 600.125,
       rightTime: 369.8703520298,
       value: null,
       details: null,
     });
-    expect(snapshot.records[1]?.value).toEqual({
+    expect(dataFeed.records[1]?.value).toEqual({
       value: 60.5,
       unit: "ml",
       left: null,
       right: null,
     });
-    expect(snapshot.records[2]?.details).toEqual({
+    expect(dataFeed.records[2]?.details).toEqual({
       amount: "small",
       hardness: "normal",
       color: "yellow",
     });
-    expect(snapshot.records[3]?.rawRecord).toBe(rawRecord);
+    expect(dataFeed.records[3]?.rawRecord).toBe(rawRecord);
   });
 
   it("turns omitted optional fields into null", () => {
-    const snapshot = parsePiyologDataFeedSnapshot({
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -133,7 +133,7 @@ describe("parsePiyologDataFeedSnapshot", () => {
       records: [{ event_id: "pee", datetime: "2026-09-16T00:00:00Z", type: "Pee" }],
     });
 
-    expect(snapshot.records[0]).toMatchObject({
+    expect(dataFeed.records[0]).toMatchObject({
       last: null,
       leftTime: null,
       rightTime: null,
@@ -180,12 +180,12 @@ describe("parsePiyologDataFeedSnapshot", () => {
     };
 
     if (overrides.schema_version === 2) {
-      expect(() => parsePiyologDataFeedSnapshot(payload)).toThrow(PiyologDataFeedValidationError);
+      expect(() => parsePiyologDataFeed(payload)).toThrow(PiyologDataFeedValidationError);
       return;
     }
 
     const records = overrides.records ?? payload.records;
-    expect(() => parsePiyologDataFeedSnapshot({ ...payload, records })).toThrow(
+    expect(() => parsePiyologDataFeed({ ...payload, records })).toThrow(
       PiyologDataFeedValidationError,
     );
   });

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
+import { parsePiyologDataFeed } from "../src/domain/piyologDataFeed";
 import { TiDBPiyologDataFeedRepository } from "../src/infrastructure/repository/tidbPiyologDataFeedRepository";
 
 describe("TiDBPiyologDataFeedRepository", () => {
-  it("deletes the half-open range and bulk upserts the snapshot using the supplied connection", async () => {
+  it("deletes the half-open range and bulk upserts the data feed using the supplied connection", async () => {
     const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
     const repository = new TiDBPiyologDataFeedRepository(connection);
-    const snapshot = snapshotWithRecords();
+    const dataFeed = dataFeedWithRecords();
 
-    await expect(repository.replaceRange(snapshot)).resolves.toBeUndefined();
+    await expect(repository.replaceRange(dataFeed)).resolves.toBeUndefined();
 
     expect(connection.execute).toHaveBeenNthCalledWith(
       1,
@@ -58,10 +58,10 @@ describe("TiDBPiyologDataFeedRepository", () => {
     expect(connection.execute).toHaveBeenCalledTimes(2);
   });
 
-  it("applies an empty snapshot as a range clear", async () => {
+  it("applies an empty data feed as a range clear", async () => {
     const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
     const repository = new TiDBPiyologDataFeedRepository(connection);
-    const snapshot = parsePiyologDataFeedSnapshot({
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T01:00:00.000Z",
       range: {
@@ -71,7 +71,7 @@ describe("TiDBPiyologDataFeedRepository", () => {
       records: [],
     });
 
-    await expect(repository.replaceRange(snapshot)).resolves.toBeUndefined();
+    await expect(repository.replaceRange(dataFeed)).resolves.toBeUndefined();
     expect(connection.execute).toHaveBeenCalledTimes(1);
     expect(connection.execute).not.toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO piyolog_feed_events"),
@@ -79,10 +79,10 @@ describe("TiDBPiyologDataFeedRepository", () => {
     );
   });
 
-  it("chunks large snapshots using the supplied connection", async () => {
+  it("chunks large data feeds using the supplied connection", async () => {
     const connection = { execute: vi.fn(async (_sql: string) => ({ rows: [] })) };
     const repository = new TiDBPiyologDataFeedRepository(connection);
-    const snapshot = parsePiyologDataFeedSnapshot({
+    const dataFeed = parsePiyologDataFeed({
       schema_version: 1,
       generated_at: "2026-09-16T02:00:00.000Z",
       range: {
@@ -96,7 +96,7 @@ describe("TiDBPiyologDataFeedRepository", () => {
       })),
     });
 
-    await repository.replaceRange(snapshot);
+    await repository.replaceRange(dataFeed);
 
     const insertCalls = connection.execute.mock.calls.filter(
       ([sql]) => typeof sql === "string" && sql.includes("INSERT INTO piyolog_feed_events"),
@@ -106,8 +106,8 @@ describe("TiDBPiyologDataFeedRepository", () => {
 
 });
 
-function snapshotWithRecords() {
-  return parsePiyologDataFeedSnapshot({
+function dataFeedWithRecords() {
+  return parsePiyologDataFeed({
     schema_version: 1,
     generated_at: "2026-09-16T01:00:00.000Z",
     range: {

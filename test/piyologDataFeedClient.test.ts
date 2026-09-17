@@ -8,7 +8,7 @@ import { PiyologDataFeedValidationError } from "../src/domain/piyologDataFeed";
 const url = "https://feed.piyolog.com/v1/feed/24h/feed-id/feed-secret";
 
 describe("HttpPiyologDataFeedClient", () => {
-  it("fetches and validates a snapshot", async () => {
+  it("fetches and validates a data feed", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(validPayload())));
     const client = new HttpPiyologDataFeedClient({
       url,
@@ -95,18 +95,18 @@ describe("HttpPiyologDataFeedClient", () => {
     expect(String(error)).not.toContain(url);
   });
 
-  it("rejects malformed JSON and invalid snapshots", async () => {
+  it("rejects malformed JSON and invalid data feeds", async () => {
     const invalidJsonClient = new HttpPiyologDataFeedClient({
       url,
       fetch: vi.fn(async () => new Response("{")),
     });
     await expect(invalidJsonClient.getDataFeed()).rejects.toMatchObject({ code: "invalid_json" });
 
-    const invalidSnapshotClient = new HttpPiyologDataFeedClient({
+    const invalidDataFeedClient = new HttpPiyologDataFeedClient({
       url,
       fetch: vi.fn(async () => new Response(JSON.stringify({ schema_version: 2 }))),
     });
-    await expect(invalidSnapshotClient.getDataFeed()).rejects.toBeInstanceOf(
+    await expect(invalidDataFeedClient.getDataFeed()).rejects.toBeInstanceOf(
       PiyologDataFeedValidationError,
     );
   });

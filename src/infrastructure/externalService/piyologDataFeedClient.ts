@@ -1,7 +1,7 @@
 import {
-  parsePiyologDataFeedSnapshot,
+  parsePiyologDataFeed,
   type PiyologDataFeedClient,
-  type PiyologDataFeedSnapshot,
+  type PiyologDataFeed,
 } from "../../domain/piyologDataFeed";
 
 export type PiyologDataFeedFetch = (
@@ -61,7 +61,7 @@ export class HttpPiyologDataFeedClient implements PiyologDataFeedClient {
     }
   }
 
-  async getDataFeed(): Promise<PiyologDataFeedSnapshot> {
+  async getDataFeed(): Promise<PiyologDataFeed> {
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       let response: Response;
       try {
@@ -119,7 +119,7 @@ export function createPiyologDataFeedClient(
   return new HttpPiyologDataFeedClient(options);
 }
 
-async function parseResponse(response: Response): Promise<PiyologDataFeedSnapshot> {
+async function parseResponse(response: Response): Promise<PiyologDataFeed> {
   let payload: unknown;
   try {
     payload = await response.json();
@@ -130,7 +130,7 @@ async function parseResponse(response: Response): Promise<PiyologDataFeedSnapsho
     );
   }
 
-  return parsePiyologDataFeedSnapshot(payload);
+  return parsePiyologDataFeed(payload);
 }
 
 function validateUrl(url: string): void {

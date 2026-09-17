@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
+import { parsePiyologDataFeed } from "../src/domain/piyologDataFeed";
 import { updatePiyologDataFeed } from "../src/application/updatePiyologDataFeedUseCase";
 import { DatabaseTransaction } from "../src/infrastructure/transaction/databaseTransaction";
 
-const snapshot = parsePiyologDataFeedSnapshot({
+const dataFeed = parsePiyologDataFeed({
   schema_version: 1,
   generated_at: "2026-09-16T01:00:00.000Z",
   range: { from: "2026-09-16T00:00:00.000Z", to: "2026-09-16T01:00:00.000Z" },
@@ -15,7 +15,7 @@ function setup() {
   const client = {
     getDataFeed: vi.fn(async () => {
       steps.push("fetch");
-      return snapshot;
+      return dataFeed;
     }),
   };
   const tx = {
@@ -40,8 +40,8 @@ describe("updatePiyologDataFeed", () => {
     const { steps, client, tx, connection, transaction } = setup();
 
     await expect(updatePiyologDataFeed({ client, transaction })).resolves.toEqual({
-      generatedAt: snapshot.generatedAt,
-      range: snapshot.range,
+      generatedAt: dataFeed.generatedAt,
+      range: dataFeed.range,
       recordCount: 1,
     });
     expect(steps).toEqual(["fetch", "begin", "delete", "insert", "commit"]);

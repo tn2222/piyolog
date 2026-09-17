@@ -4,11 +4,11 @@ import type {
   PiyologDataFeedClient,
 } from "../domain/piyologDataFeed";
 import { TiDBPiyologDataFeedRepository } from "../infrastructure/repository/tidbPiyologDataFeedRepository";
-import type { DatabaseTransactionInterface } from "./databaseTransaction";
+import type { DatabaseTransaction } from "../infrastructure/transaction/databaseTransaction";
 
 export type PiyologDataFeedUpdateDependencies = {
   client: PiyologDataFeedClient;
-  transaction: DatabaseTransactionInterface;
+  transaction: DatabaseTransaction;
 };
 
 export type PiyologDataFeedUpdateResult = {

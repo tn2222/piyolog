@@ -1,7 +1,7 @@
 import type {
   PiyologDataFeedRecord,
   PiyologDataFeedRepository,
-  PiyologDataFeedSnapshot,
+  PiyologDataFeed,
 } from "../../domain/piyologDataFeed";
 import { toTiDBDateTime } from "../../domain/piyologDataFeed";
 import type { DatabaseConnection } from "../databaseConnection";
@@ -9,17 +9,17 @@ import type { DatabaseConnection } from "../databaseConnection";
 export class TiDBPiyologDataFeedRepository implements PiyologDataFeedRepository {
   constructor(private readonly connection: DatabaseConnection) {}
 
-  async replaceRange(snapshot: PiyologDataFeedSnapshot): Promise<void> {
+  async replaceRange(dataFeed: PiyologDataFeed): Promise<void> {
     await this.connection.execute(
       `
 DELETE FROM piyolog_feed_events
 WHERE occurred_at >= ?
   AND occurred_at < ?
       `.trim(),
-      [toTiDBDateTime(snapshot.range.from), toTiDBDateTime(snapshot.range.to)],
+      [toTiDBDateTime(dataFeed.range.from), toTiDBDateTime(dataFeed.range.to)],
     );
 
-    for (const records of chunk(snapshot.records, 100)) {
+    for (const records of chunk(dataFeed.records, 100)) {
       await this.connection.execute(
         `
 INSERT INTO piyolog_feed_events (

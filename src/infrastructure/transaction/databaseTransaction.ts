@@ -1,7 +1,6 @@
-import type { DatabaseTransactionInterface } from "../../application/databaseTransaction";
 import type { DatabaseConnection, TransactionalDatabaseConnection } from "../databaseConnection";
 
-export class DatabaseTransaction implements DatabaseTransactionInterface {
+export class DatabaseTransaction {
   constructor(private readonly connection: TransactionalDatabaseConnection) {}
 
   async run(work: (connection: DatabaseConnection) => Promise<void>): Promise<void> {

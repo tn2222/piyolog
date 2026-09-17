@@ -32,7 +32,7 @@ export type PiyologDataFeedRecord = {
   rawRecord: Record<string, unknown>;
 };
 
-export type PiyologDataFeedSnapshot = {
+export type PiyologDataFeed = {
   schemaVersion: 1;
   generatedAt: UtcTimestamp;
   range: PiyologDataFeedRange;
@@ -40,11 +40,11 @@ export type PiyologDataFeedSnapshot = {
 };
 
 export type PiyologDataFeedClient = {
-  getDataFeed(): Promise<PiyologDataFeedSnapshot>;
+  getDataFeed(): Promise<PiyologDataFeed>;
 };
 
 export type PiyologDataFeedRepository = {
-  replaceRange(snapshot: PiyologDataFeedSnapshot): Promise<void>;
+  replaceRange(dataFeed: PiyologDataFeed): Promise<void>;
 };
 
 export class PiyologDataFeedValidationError extends Error {
@@ -56,7 +56,7 @@ export class PiyologDataFeedValidationError extends Error {
   }
 }
 
-export function parsePiyologDataFeedSnapshot(input: unknown): PiyologDataFeedSnapshot {
+export function parsePiyologDataFeed(input: unknown): PiyologDataFeed {
   const payload = requireRecord(input, "feed response");
   if (payload.schema_version !== 1) {
     throw new PiyologDataFeedValidationError("Unsupported feed schema");
