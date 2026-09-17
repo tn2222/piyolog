@@ -33,6 +33,7 @@ migrations/001_create_piyolog_events.sql
 migrations/002_create_raw_piyolog_text_exports.sql
 migrations/003_create_piyolog_diaries.sql
 migrations/004_create_piyolog_feed_tables.sql
+migrations/005_create_piyolog_feed_event_type_labels.sql
 ```
 
 `piyolog_events.raw_payload_id` は、現在は `raw_piyolog_text_exports.id` を参照する取り込み元IDとして使っています。既存データベースとの互換性を優先して列名は維持しています。
@@ -40,6 +41,8 @@ migrations/004_create_piyolog_feed_tables.sql
 `piyolog_diaries` は、同じ `baby_nickname`, `baby_date_of_birth`, `entry_date` の日記を置き換えます。`journal` が空文字で送られた場合も空文字として更新し、ぴよログ側で日記を消した状態をDBへ反映します。
 
 `piyolog_feed_events` は公開フィードの `range.from <= occurred_at < range.to` を毎回削除してから、取得レコードを `event_id` でUPSERTします。取得範囲外の履歴は残し、正常な空配列は範囲内を削除します。
+
+`piyolog_feed_event_type_labels` は、公開フィードの `event_type` とGrafana表示用の日本語ラベルを対応付けます。未登録のAPI種別も `piyolog_feed_events` には保存されます。
 
 ## ローカル開発
 
@@ -75,7 +78,7 @@ Workerをデプロイします。
 npm run deploy
 ```
 
-WorkerのCron Triggerが5分ごとに公開フィードを取得します。Cloudflare Secrets Storeの `PIYOLOG_FEED_URL` と `migrations/004_create_piyolog_feed_tables.sql` を準備してからWorkerをデプロイしてください。
+WorkerのCron Triggerが5分ごとに公開フィードを取得します。Cloudflare Secrets Storeの `PIYOLOG_FEED_URL` と `migrations/004_create_piyolog_feed_tables.sql`、`migrations/005_create_piyolog_feed_event_type_labels.sql` を準備してからWorkerをデプロイしてください。
 
 デプロイ後、Apps Script の `WORKER_TEXT_ENDPOINT` に Worker のテキスト取り込みエンドポイントを設定します。
 

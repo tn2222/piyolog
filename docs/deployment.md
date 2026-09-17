@@ -13,7 +13,7 @@ Cloudflare API token は、Cloudflare dashboard の Account API tokens で作成
 
 Worker の実行時secretは Cloudflare Secrets Store で管理します。詳しくは [セキュリティ](security.md) を参照してください。
 
-公開フィードを使う場合は、Secrets Storeに `PIYOLOG_FEED_URL` を追加してください。WorkerのCron Triggerが5分ごとに取得するため、初回デプロイ前にフィードURLと `migrations/004_create_piyolog_feed_tables.sql` の適用を完了させます。
+公開フィードを使う場合は、Secrets Storeに `PIYOLOG_FEED_URL` を追加してください。WorkerのCron Triggerが5分ごとに取得するため、初回デプロイ前にフィードURLと `migrations/004_create_piyolog_feed_tables.sql`、`migrations/005_create_piyolog_feed_event_type_labels.sql` の適用を完了させます。
 
 参考:
 

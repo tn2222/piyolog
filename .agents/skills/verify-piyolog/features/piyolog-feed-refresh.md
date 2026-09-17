@@ -15,7 +15,7 @@ The Worker Cron Trigger runs every five minutes. Grafana and the Mac milk notifi
 Preconditions:
 
 - `PIYOLOG_VERIFY_BASE_URL` points to a local Worker launched with a disposable TiDB database.
-- The disposable database has `migrations/004_create_piyolog_feed_tables.sql` applied.
+- The disposable database has `migrations/004_create_piyolog_feed_tables.sql` and `migrations/005_create_piyolog_feed_event_type_labels.sql` applied.
 - `PIYOLOG_FEED_URL` points to an HTTPS test feed with synthetic records only.
 
 Trigger one scheduled run and retain the HTTP response:
