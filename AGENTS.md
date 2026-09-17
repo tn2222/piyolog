@@ -17,11 +17,12 @@ TypeScriptのCloudflare Workerでぴよログを取り込み、TiDBへ保存す�
 - `src/infrastructure/externalService/`: 外部APIのClient。
 - `src/infrastructure/repository/`: Repository。渡された接続でSQLを実行する。
 - `src/infrastructure/queryService/`: 参照と集計のSQL。
-- `src/infrastructure/transaction/`: DBの開始、commit、rollbackとトランザクション用Repositoryの生成。
+- `src/infrastructure/transaction/`: DBの開始、commit、rollback。開始済みの接続をコールバックに渡す。
 - `src/handler.ts` と `src/piyologText.ts`: 既存の取り込み処理とテキスト解析。`src/repository.ts` はRepositoryの再エクスポート。
 - `test/`: Vitestのテスト。`migrations/`: DDL。`apps-script/`: Google Apps Script。`scripts/`: Mac通知。
 
 トランザクションはUseCaseの `transaction.run(...)` で範囲を定める。
+公開フィードのUseCaseは、そのコールバック内で接続を渡して `TiDBPiyologDataFeedRepository` を生成する。
 Repository自身は開始、commit、rollbackしない。
 公開フィードのHTTP取得はトランザクションの外で行い、範囲のDELETEとUPSERTを同じトランザクションに含める。
 

@@ -1,14 +1,14 @@
 import type {
   PiyologDataFeedRange,
-  PiyologDataFeedRepository,
   UtcTimestamp,
   PiyologDataFeedClient,
 } from "../domain/piyologDataFeed";
+import { TiDBPiyologDataFeedRepository } from "../infrastructure/repository/tidbPiyologDataFeedRepository";
 import type { DatabaseTransactionInterface } from "./databaseTransaction";
 
 export type PiyologDataFeedUpdateDependencies = {
   client: PiyologDataFeedClient;
-  transaction: DatabaseTransactionInterface<PiyologDataFeedRepository>;
+  transaction: DatabaseTransactionInterface;
 };
 
 export type PiyologDataFeedUpdateResult = {
@@ -21,7 +21,8 @@ export async function updatePiyologDataFeed(
   dependencies: PiyologDataFeedUpdateDependencies,
 ): Promise<PiyologDataFeedUpdateResult> {
   const snapshot = await dependencies.client.getDataFeed();
-  await dependencies.transaction.run(async (repository) => {
+  await dependencies.transaction.run(async (connection) => {
+    const repository = new TiDBPiyologDataFeedRepository(connection);
     await repository.replaceRange(snapshot);
   });
   return {

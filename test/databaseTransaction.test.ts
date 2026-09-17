@@ -1,111 +1,71 @@
-import type { DatabaseConnection } from "../src/infrastructure/databaseConnection";
 import { describe, expect, it, vi } from "vitest";
-import { parsePiyologDataFeedSnapshot } from "../src/domain/piyologDataFeed";
-import { TiDBPiyologDataFeedRepository } from "../src/infrastructure/repository/tidbPiyologDataFeedRepository";
 import { DatabaseTransaction } from "../src/infrastructure/transaction/databaseTransaction";
 
-const snapshot = parsePiyologDataFeedSnapshot({
-  schema_version: 1,
-  generated_at: "2026-09-16T01:00:00.000Z",
-  range: { from: "2026-09-16T00:00:00.000Z", to: "2026-09-16T01:00:00.000Z" },
-  records: [{ event_id: "formula", datetime: "2026-09-16T00:30:00.000Z", type: "Formula" }],
-});
-
-function setup() {
-  const tx = {
+function createTransactionConnection() {
+  return {
     execute: vi.fn(async (_sql: string) => ({})),
     commit: vi.fn(async () => ({})),
     rollback: vi.fn(async () => ({})),
   };
+}
+
+function setup() {
+  const tx = createTransactionConnection();
   const connection = { begin: vi.fn(async () => tx), execute: vi.fn() };
-  const transaction = new DatabaseTransaction(connection, TiDBPiyologDataFeedRepository);
-  return { tx, connection, transaction };
+  return { tx, connection, transaction: new DatabaseTransaction(connection) };
 }
 
 describe("DatabaseTransaction", () => {
-  it("constructs a fresh repository for each transaction using the supplied class", async () => {
-    const { tx, connection } = setup();
-    const nextTx = {
-      execute: vi.fn(async (_sql: string) => ({})),
-      commit: vi.fn(async () => ({})),
-      rollback: vi.fn(async () => ({})),
-    };
-    connection.begin.mockResolvedValueOnce(tx).mockResolvedValueOnce(nextTx);
-    class EventRepository {
-      constructor(private readonly connection: DatabaseConnection) {}
-      async save(id: number): Promise<void> {
-        await this.connection.execute("INSERT INTO events VALUES (?)", [id]);
-      }
-    }
-    const transaction = new DatabaseTransaction(connection, EventRepository);
-    const repositories: EventRepository[] = [];
-
-    await transaction.run(async (repository) => {
-      repositories.push(repository);
-      await repository.save(1);
-    });
-    await transaction.run(async (repository) => {
-      repositories.push(repository);
-      await repository.save(2);
-    });
-
-    expect(repositories[0]).toBeInstanceOf(EventRepository);
-    expect(repositories[1]).not.toBe(repositories[0]);
-    expect(tx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [1]);
-    expect(nextTx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [2]);
-    expect(tx.commit).toHaveBeenCalledOnce();
-    expect(nextTx.commit).toHaveBeenCalledOnce();
-    expect(connection.execute).not.toHaveBeenCalled();
-  });
-
-  it("rolls back when repository construction fails", async () => {
-    const { tx, connection } = setup();
-    const error = new Error("constructor failed");
-    class FailingRepository {
-      constructor(_connection: DatabaseConnection) {
-        throw error;
-      }
-    }
-    const transaction = new DatabaseTransaction(connection, FailingRepository);
-    const work = vi.fn();
-
-    await expect(transaction.run(work)).rejects.toBe(error);
-    expect(work).not.toHaveBeenCalled();
-    expect(tx.commit).not.toHaveBeenCalled();
-    expect(tx.rollback).toHaveBeenCalledOnce();
-  });
-
-  it("runs repository queries on the transaction connection and commits after the callback", async () => {
+  it("passes the connection from begin to the callback and commits after completion", async () => {
     const { tx, connection, transaction } = setup();
-    await transaction.run(async (repository) => {
-      await repository.replaceRange(snapshot);
+    await transaction.run(async (activeConnection) => {
+      expect(activeConnection).toBe(tx);
+      await activeConnection.execute("INSERT INTO events VALUES (?)", [1]);
       expect(tx.commit).not.toHaveBeenCalled();
     });
 
     expect(connection.begin).toHaveBeenCalledOnce();
     expect(connection.execute).not.toHaveBeenCalled();
-    expect(tx.execute).toHaveBeenNthCalledWith(1, expect.stringContaining("DELETE FROM"), expect.any(Array));
-    expect(tx.execute).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO"), expect.any(Array));
+    expect(tx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [1]);
     expect(tx.commit).toHaveBeenCalledOnce();
     expect(tx.rollback).not.toHaveBeenCalled();
   });
 
-  it("rolls back when insertion fails after deletion", async () => {
+  it("uses the new transaction connection on every run", async () => {
+    const { tx, connection, transaction } = setup();
+    const nextTx = createTransactionConnection();
+    connection.begin.mockResolvedValueOnce(tx).mockResolvedValueOnce(nextTx);
+
+    await transaction.run(async (activeConnection) => {
+      await activeConnection.execute("INSERT INTO events VALUES (?)", [1]);
+    });
+    await transaction.run(async (activeConnection) => {
+      await activeConnection.execute("INSERT INTO events VALUES (?)", [2]);
+    });
+
+    expect(tx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [1]);
+    expect(nextTx.execute).toHaveBeenCalledExactlyOnceWith("INSERT INTO events VALUES (?)", [2]);
+    expect(tx.commit).toHaveBeenCalledOnce();
+    expect(nextTx.commit).toHaveBeenCalledOnce();
+  });
+
+  it("rolls back SQL failures and preserves the error", async () => {
     const { tx, transaction } = setup();
     const error = new Error("insert failed");
-    tx.execute.mockResolvedValueOnce({}).mockRejectedValueOnce(error);
+    tx.execute.mockRejectedValueOnce(error);
 
-    await expect(transaction.run((repository) => repository.replaceRange(snapshot))).rejects.toBe(error);
-    expect(tx.execute).toHaveBeenCalledTimes(2);
+    await expect(transaction.run(async (connection) => {
+      await connection.execute("INSERT INTO events VALUES (?)", [1]);
+    })).rejects.toBe(error);
     expect(tx.rollback).toHaveBeenCalledOnce();
     expect(tx.commit).not.toHaveBeenCalled();
   });
 
-  it("rolls back callback failures even after repository writes succeed", async () => {
+  it("rolls back callback failures even after SQL succeeds", async () => {
     const { tx, transaction } = setup();
     const error = new Error("callback failed");
-    await expect(transaction.run(async (repository) => {
-      await repository.replaceRange(snapshot);
+    await expect(transaction.run(async (connection) => {
+      await connection.execute("INSERT INTO events VALUES (?)", [1]);
       throw error;
     })).rejects.toBe(error);
     expect(tx.rollback).toHaveBeenCalledOnce();
@@ -118,7 +78,7 @@ describe("DatabaseTransaction", () => {
     tx.commit.mockRejectedValueOnce(error);
     tx.rollback.mockRejectedValueOnce(new Error("rollback failed"));
 
-    await expect(transaction.run((repository) => repository.replaceRange(snapshot))).rejects.toBe(error);
+    await expect(transaction.run(async () => {})).rejects.toBe(error);
     expect(tx.rollback).toHaveBeenCalledOnce();
   });
 

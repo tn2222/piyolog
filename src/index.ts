@@ -10,7 +10,6 @@ import { HttpLlmGatewayClient } from "./infrastructure/externalService/llmGatewa
 import { HttpLineMessagingClient } from "./infrastructure/externalService/lineMessagingClient";
 import { createPiyologDataFeedClient } from "./infrastructure/externalService/piyologDataFeedClient";
 import { createTiDBSummaryPeriodQueryService } from "./infrastructure/queryService/summaryPeriodQueryService";
-import { TiDBPiyologDataFeedRepository } from "./infrastructure/repository/tidbPiyologDataFeedRepository";
 import { DatabaseTransaction } from "./infrastructure/transaction/databaseTransaction";
 import { createTiDBPiyologRepository } from "./repository";
 import { resolvePiyologDataFeedSecrets, resolveSecrets } from "./secrets";
@@ -127,7 +126,6 @@ export default {
         client: createPiyologDataFeedClient({ url: feedEnv.PIYOLOG_FEED_URL }),
         transaction: new DatabaseTransaction(
           connect({ url: feedEnv.DATABASE_URL, fullResult: true }),
-          TiDBPiyologDataFeedRepository,
         ),
       });
 

@@ -1,3 +1,5 @@
-export interface DatabaseTransactionInterface<TRepository> {
-  run(work: (repository: TRepository) => Promise<void>): Promise<void>;
+import type { DatabaseConnection } from "../infrastructure/databaseConnection";
+
+export interface DatabaseTransactionInterface {
+  run(work: (connection: DatabaseConnection) => Promise<void>): Promise<void>;
 }
