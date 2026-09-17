@@ -20,14 +20,14 @@ export type PiyologDataFeedUpdateResult = {
 export async function updatePiyologDataFeed(
   dependencies: PiyologDataFeedUpdateDependencies,
 ): Promise<PiyologDataFeedUpdateResult> {
-  const snapshot = await dependencies.client.getDataFeed();
+  const dataFeed = await dependencies.client.getDataFeed();
   await dependencies.transaction.run(async (connection) => {
     const repository = new TiDBPiyologDataFeedRepository(connection);
-    await repository.replaceRange(snapshot);
+    await repository.replaceRange(dataFeed);
   });
   return {
-    generatedAt: snapshot.generatedAt,
-    range: snapshot.range,
-    recordCount: snapshot.records.length,
+    generatedAt: dataFeed.generatedAt,
+    range: dataFeed.range,
+    recordCount: dataFeed.records.length,
   };
 }
